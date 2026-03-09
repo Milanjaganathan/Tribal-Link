@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TribalLink | Authentic Tribal Marketplace</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --primary: #2d5a27; --accent: #8b4513; --fk-blue: #2874f0; --orange: #fb641b; --bg: #f1f3f6; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        body { background-color: var(--bg); color: #212121; }
+
+        .header { background: var(--primary); padding: 12px 10%; display: flex; align-items: center; color: white; position: sticky; top: 0; z-index: 1000; flex-wrap: wrap; gap: 10px; }
+        .logo { font-size: 1.6rem; font-weight: 700; cursor: pointer; margin-right: 30px; }
+        .logo span { color: #ffe500; font-size: 0.8rem; margin-left: 5px; }
+        .search-box { flex: 1; display: flex; background: white; border-radius: 2px; padding: 0 15px; align-items: center; max-width: 500px; }
+        .search-box input { width: 100%; border: none; padding: 10px; outline: none; }
+        .nav-links { display: flex; gap: 20px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+        .nav-item { cursor: pointer; font-weight: 600; color: white; display: flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+        .badge { background: var(--orange); font-size: 0.7rem; padding: 2px 6px; border-radius: 50%; border: 1px solid white; margin-left: -5px; margin-top: -15px; }
+
+        .page-section { display: none; padding: 20px 10%; min-height: 85vh; }
+        .page-section.active { display: block; }
+        .home-layout { display: grid; grid-template-columns: 240px 1fr; gap: 20px; }
+        .sidebar { background: white; padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); height: fit-content; }
+        .cat-btn { padding: 12px 10px; cursor: pointer; font-size: 0.9rem; border-radius: 4px; transition: 0.2s; }
+        .cat-btn:hover, .cat-btn.active { color: var(--primary); font-weight: 600; background: #f0f5ef; }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .card { background: white; padding: 15px; border-radius: 4px; border: 1px solid #f0f0f0; transition: 0.3s; cursor: pointer; }
+        .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.15); transform: translateY(-2px); }
+        .card img { width: 100%; height: 160px; object-fit: cover; border-radius: 4px; }
+        .card h4 { margin-top: 8px; font-size: 0.9rem; }
+        .price { font-size: 1.1rem; font-weight: 700; margin: 8px 0; color: #212121; }
+
+        .form-container { background: white; padding: 40px; border-radius: 4px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 20px auto; }
+        input, textarea, select { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px; font-family: inherit; }
+        .btn { width: 100%; padding: 12px; border: none; font-weight: 700; cursor: pointer; border-radius: 2px; margin-top: 10px; color: white; font-size: 0.95rem; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .item-row { display: flex; background: white; padding: 20px; border-bottom: 1px solid #eee; gap: 20px; align-items: center; margin-bottom: 10px; border-radius: 4px; }
+        .item-row img { width: 100px; height: 100px; object-fit: cover; border-radius: 4px; }
+        .qty-btn { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd; background: white; cursor: pointer; font-size: 1rem; }
+        .qty-btn:hover { background: #f0f0f0; }
+        .feedback-item { background: white; padding: 15px; border-radius: 4px; margin-bottom: 10px; border-left: 4px solid var(--primary); }
+        .toast { position: fixed; bottom: 30px; right: 30px; background: #333; color: white; padding: 14px 28px; border-radius: 8px; z-index: 9999; display: none; font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .toast.show { display: block; animation: fadeInUp 0.3s ease; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .loading { text-align: center; padding: 40px; color: #888; }
+        .user-badge { background: #ffe500; color: #333; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <div class="logo" onclick="nav('home')">Tribal<span>Link</span></div>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search for unique tribal products..." onkeyup="handleSearch(event)">
+            <i class="fa fa-search" style="cursor:pointer" onclick="handleSearch({key:'Enter'})"></i>
+        </div>
+        <div class="nav-links">
+            <div class="nav-item" onclick="nav('home')"><i class="fa-solid fa-house"></i> Home</div>
+            <div class="nav-item" onclick="nav('seller')"><i class="fa-solid fa-shop"></i> Seller Hub</div>
+            <div class="nav-item" onclick="nav('orders')"><i class="fa-solid fa-box"></i> Orders</div>
+            <div class="nav-item" onclick="nav('wishlist')"><i class="fa-regular fa-heart"></i> Wishlist <span class="badge" id="wBadge">0</span></div>
+            <div class="nav-item" onclick="nav('cart')"><i class="fa-solid fa-cart-shopping"></i> Cart <span class="badge" id="cBadge">0</span></div>
+            <div class="nav-item" id="authNav" onclick="handleAuthClick()"><i class="fa-solid fa-user"></i> Login</div>
+        </div>
+    </header>
+
+    <!-- HOME -->
+    <section id="home" class="page-section active">
+        <div class="home-layout">
+            <aside class="sidebar"><h3 style="font-size:0.8rem;color:#878787;margin-bottom:15px;">CATEGORIES</h3><div id="catMenu"></div></aside>
+            <main><h2 id="viewTitle" style="margin-bottom:20px;color:var(--accent);">All Products</h2><div class="grid" id="mainGrid"><div class="loading">Loading products...</div></div></main>
+        </div>
+    </section>
+
+    <!-- LOGIN -->
+    <section id="login" class="page-section">
+        <div class="form-container">
+            <h2 style="text-align:center" id="authTitle">User Login</h2>
+            <div id="loginForm">
+                <input type="email" id="loginEmail" placeholder="Email">
+                <input type="password" id="loginPass" placeholder="Password">
+                <button class="btn" style="background:var(--fk-blue)" onclick="doLogin()">Continue</button>
+                <p style="text-align:center;margin-top:15px;font-size:0.9rem">New to TribalLink? <span style="color:var(--fk-blue);cursor:pointer" onclick="showRegister()">Create an account</span></p>
+            </div>
+            <div id="registerForm" style="display:none">
+                <input type="text" id="regFirst" placeholder="First Name">
+                <input type="text" id="regLast" placeholder="Last Name">
+                <input type="text" id="regUsername" placeholder="Username">
+                <input type="email" id="regEmail" placeholder="Email">
+                <input type="text" id="regPhone" placeholder="Phone Number">
+                <input type="password" id="regPass" placeholder="Password (min 8 chars)">
+                <input type="password" id="regPass2" placeholder="Confirm Password">
+                <select id="regRole"><option value="customer">Customer</option><option value="seller">Seller / Artisan</option></select>
+                <button class="btn" style="background:var(--primary)" onclick="doRegister()">Register</button>
+                <p style="text-align:center;margin-top:15px;font-size:0.9rem">Already have an account? <span style="color:var(--fk-blue);cursor:pointer" onclick="showLogin()">Login</span></p>
+            </div>
+            <button class="btn" style="background:#888" onclick="nav('home')">Back to Home</button>
+        </div>
+    </section>
+
+    <!-- SELLER -->
+    <section id="seller" class="page-section">
+        <div class="form-container" style="max-width:600px">
+            <h2 style="color:var(--primary);text-align:center">Artisan Dashboard</h2>
+            <input type="text" id="sellerName" placeholder="Product Name">
+            <select id="sellerCat"></select>
+            <input type="number" id="sellerPrice" placeholder="Price (₹)">
+            <input type="number" id="sellerStock" placeholder="Stock Quantity" value="50">
+            <label style="font-size:0.8rem;color:#666">Upload Product Image:</label>
+            <input type="file" id="sellerImage" accept="image/*">
+            <input type="url" id="sellerImgUrl" placeholder="Or paste image URL">
+            <textarea id="sellerDesc" placeholder="Describe the story of your product..." style="height:100px"></textarea>
+            <button class="btn" style="background:var(--primary)" onclick="addSellerProduct()">List Product</button>
+            <button class="btn" style="background:#888" onclick="nav('home')">Back to Home</button>
+            <h3 style="margin-top:30px;margin-bottom:10px">Your Products</h3>
+            <div id="sellerProducts"><p class="loading">Login as seller to see products</p></div>
+        </div>
+    </section>
+
+    <!-- DETAILS -->
+    <section id="details" class="page-section"><div id="detailContent"></div></section>
+
+    <!-- CART -->
+    <section id="cart" class="page-section">
+        <h2 style="margin-bottom:20px">My Cart</h2>
+        <div id="cartDisplay"><div class="loading">Loading cart...</div></div>
+        <div id="cartSummary"></div>
+        <button class="btn" style="background:#888;width:200px" onclick="nav('home')">Back to Shop</button>
+    </section>
+
+    <!-- WISHLIST -->
+    <section id="wishlist" class="page-section">
+        <h2 style="margin-bottom:20px">My Wishlist</h2>
+        <div class="grid" id="wishDisplay"><div class="loading">Loading wishlist...</div></div>
+        <button class="btn" style="background:#888;width:200px;margin-top:20px" onclick="nav('home')">Back to Shop</button>
+    </section>
+
+    <!-- ORDERS -->
+    <section id="orders" class="page-section">
+        <h2 style="margin-bottom:20px">My Orders</h2>
+        <div id="ordersDisplay"><div class="loading">Loading orders...</div></div>
+        <button class="btn" style="background:#888;width:200px" onclick="nav('home')">Back to Shop</button>
+    </section>
+
+    <!-- CHECKOUT -->
+    <section id="checkout" class="page-section">
+        <div class="form-container" style="max-width:600px">
+            <h2 style="color:var(--primary);text-align:center">Checkout</h2>
+            <input type="text" id="shipName" placeholder="Full Name">
+            <input type="text" id="shipPhone" placeholder="Phone Number">
+            <textarea id="shipAddr" placeholder="Full Address" style="height:80px"></textarea>
+            <input type="text" id="shipCity" placeholder="City">
+            <input type="text" id="shipState" placeholder="State">
+            <input type="text" id="shipPin" placeholder="PIN Code">
+            <select id="payMethod">
+                <option value="cod">Cash on Delivery</option>
+                <option value="upi">UPI</option>
+                <option value="bank_transfer">Bank Transfer</option>
+            </select>
+            <div id="upiFields" style="display:none">
+                <input type="text" id="upiId" placeholder="UPI ID (e.g. name@upi)">
+            </div>
+            <div id="bankFields" style="display:none">
+                <input type="text" id="bankName" placeholder="Bank Name">
+                <input type="text" id="bankAcc" placeholder="Account Number">
+                <input type="text" id="bankIfsc" placeholder="IFSC Code">
+            </div>
+            <button class="btn" style="background:var(--orange)" onclick="placeOrder()">Place Order</button>
+            <button class="btn" style="background:#888" onclick="nav('cart')">Back to Cart</button>
+        </div>
+    </section>
+
+    <!-- FEEDBACK -->
+    <section id="feedback" class="page-section active" style="background:#f1f3f6;margin-top:20px">
+        <div class="form-container" style="max-width:100%">
+            <h2 style="margin-bottom:20px">Customer Feedback</h2>
+            <div id="feedbackList">
+                <div class="feedback-item"><strong>Akash:</strong> The Wild Rock Honey is incredibly pure!</div>
+                <div class="feedback-item"><strong>Customer:</strong> Beautiful Dokra jewelry, very authentic.</div>
+            </div>
+            <textarea id="feedInput" placeholder="Write your review..."></textarea>
+            <button class="btn" style="background:var(--primary);width:200px" onclick="addFeedback()">Submit Feedback</button>
+        </div>
+    </section>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    // ─── CONFIG ───
+    const API = 'http://127.0.0.1:8000/api';
+
+    // ─── TOKEN MANAGER ───
+    const TM = {
+        get: () => localStorage.getItem('tl_access'),
+        getRefresh: () => localStorage.getItem('tl_refresh'),
+        getUser: () => JSON.parse(localStorage.getItem('tl_user') || 'null'),
+        save(d) {
+            if(d.access) localStorage.setItem('tl_access', d.access);
+            if(d.refresh) localStorage.setItem('tl_refresh', d.refresh);
+            if(d.user) localStorage.setItem('tl_user', JSON.stringify(d.user));
+        },
+        clear() { localStorage.removeItem('tl_access'); localStorage.removeItem('tl_refresh'); localStorage.removeItem('tl_user'); },
+        loggedIn() { return !!this.get(); },
+        async refresh() {
+            const rt = this.getRefresh();
+            if(!rt) return false;
+            try {
+                const r = await fetch(API+'/accounts/token/refresh/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({refresh:rt}) });
+                if(!r.ok) { this.clear(); return false; }
+                const d = await r.json(); this.save(d); return true;
+            } catch { this.clear(); return false; }
+        }
+    };
+
+    // ─── FETCH WITH AUTH ───
+    async function apiFetch(endpoint, opts={}) {
+        const headers = { 'Content-Type': 'application/json', ...opts.headers };
+        const t = TM.get();
+        if(t) headers['Authorization'] = 'Bearer ' + t;
+        if(opts.body instanceof FormData) delete headers['Content-Type'];
+        let r = await fetch(API + endpoint, { ...opts, headers });
+        if(r.status === 401 && TM.getRefresh()) {
+            if(await TM.refresh()) {
+                headers['Authorization'] = 'Bearer ' + TM.get();
+                r = await fetch(API + endpoint, { ...opts, headers });
+            }
+        }
+        return r;
+    }
+
+    // ─── TOAST ───
+    function toast(msg) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 2500);
+    }
+
+    // ─── NAVIGATION ───
+    function nav(id) {
+        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        if(id === 'home') document.getElementById('feedback').classList.add('active');
+        else document.getElementById('feedback').classList.remove('active');
+        if(id === 'cart') renderCart();
+        if(id === 'wishlist') renderWish();
+        if(id === 'orders') renderOrders();
+        if(id === 'seller') loadSellerProducts();
+    }
+
+    // ─── AUTH UI ───
+    let isLoggedIn = false;
+    function updateAuthUI() {
+        const el = document.getElementById('authNav');
+        isLoggedIn = TM.loggedIn();
+        if(isLoggedIn) {
+            const u = TM.getUser();
+            el.innerHTML = '<i class="fa-solid fa-right-from-bracket"></i> ' + (u ? u.first_name : 'Logout');
+        } else {
+            el.innerHTML = '<i class="fa-solid fa-user"></i> Login';
+        }
+    }
+    function handleAuthClick() {
+        if(isLoggedIn) {
+            if(confirm('Logout?')) { TM.clear(); updateAuthUI(); nav('home'); toast('Logged out'); }
+        } else {
+            nav('login');
+        }
+    }
+
+    function showRegister() {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('registerForm').style.display = 'block';
+        document.getElementById('authTitle').textContent = 'Create Account';
+    }
+    function showLogin() {
+        document.getElementById('loginForm').style.display = 'block';
+        document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('authTitle').textContent = 'User Login';
+    }
+
+    async function doLogin() {
+        const email = document.getElementById('loginEmail').value;
+        const password = document.getElementById('loginPass').value;
+        if(!email || !password) { toast('Please fill all fields'); return; }
+        try {
+            const r = await fetch(API+'/accounts/login/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password}) });
+            const d = await r.json();
+            if(r.ok) { TM.save({access:d.access, refresh:d.refresh, user:d.user}); updateAuthUI(); updateBadges(); nav('home'); toast('Welcome back, '+d.user.first_name+'!'); }
+            else { toast(d.detail || 'Login failed. Check credentials.'); }
+        } catch(e) { toast('Network error'); }
+    }
+
+    async function doRegister() {
+        const data = {
+            email: document.getElementById('regEmail').value,
+            username: document.getElementById('regUsername').value,
+            password: document.getElementById('regPass').value,
+            password2: document.getElementById('regPass2').value,
+            first_name: document.getElementById('regFirst').value,
+            last_name: document.getElementById('regLast').value,
+            phone: document.getElementById('regPhone').value,
+            role: document.getElementById('regRole').value,
+        };
+        if(!data.email || !data.username || !data.password) { toast('Fill required fields'); return; }
+        if(data.password !== data.password2) { toast('Passwords do not match'); return; }
+        try {
+            const r = await fetch(API+'/accounts/register/', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+            const d = await r.json();
+            if(r.ok) { TM.save({...d.tokens, user:d.user}); updateAuthUI(); nav('home'); toast('Welcome, '+d.user.first_name+'!'); }
+            else { const err = Object.values(d).flat().join(', '); toast(err || 'Registration failed'); }
+        } catch(e) { toast('Network error'); }
+    }
+
+    // ─── CATEGORIES ───
+    let allCategories = [];
+    async function loadCategories() {
+        try {
+            const r = await fetch(API+'/products/categories/');
+            allCategories = await r.json();
+            const menu = document.getElementById('catMenu');
+            const sellerCat = document.getElementById('sellerCat');
+            menu.innerHTML = '<div class="cat-btn active" onclick="loadAll(this)">All Products</div>';
+            sellerCat.innerHTML = '';
+            allCategories.forEach(c => {
+                menu.innerHTML += '<div class="cat-btn" onclick="loadCat('+c.id+',\''+c.name+'\',this)">'+c.name+' <span style="color:#999;font-size:0.75rem">('+c.product_count+')</span></div>';
+                sellerCat.innerHTML += '<option value="'+c.id+'">'+c.name+'</option>';
+            });
+        } catch(e) { console.error('Categories error:', e); }
+    }
+
+    // ─── PRODUCTS ───
+    function fmtPrice(p) { const n = parseFloat(p); return n % 1 === 0 ? n.toFixed(0) : n.toFixed(2); }
+    function renderProducts(products, grid) {
+        if(!products.length) { grid.innerHTML = '<p style="padding:20px;color:#888">No products found</p>'; return; }
+        grid.innerHTML = '';
+        products.forEach(p => {
+            const img = p.display_image || p.image_url || p.image || '';
+            grid.innerHTML += '<div class="card" onclick="openDetails('+p.id+')">' +
+                '<img src="'+img+'" onerror="this.src=\'https://via.placeholder.com/200x160?text=No+Image\'" alt="'+p.name+'">' +
+                '<h4>'+p.name+'</h4>' +
+                '<div class="price">₹'+fmtPrice(p.price)+'</div>' +
+                '</div>';
+        });
+    }
+
+    async function loadAll(btn) {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        document.getElementById('viewTitle').textContent = 'All Products';
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = '<div class="loading">Loading...</div>';
+        try {
+            const r = await fetch(API+'/products/?page=1&ordering=-is_featured');
+            const d = await r.json();
+            renderProducts(d.results || [], grid);
+        } catch(e) { grid.innerHTML = '<p>Error loading products</p>'; }
+    }
+
+    async function loadCat(catId, catName, btn) {
+        document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        document.getElementById('viewTitle').textContent = catName;
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = '<div class="loading">Loading...</div>';
+        try {
+            const r = await fetch(API+'/products/?category='+catId);
+            const d = await r.json();
+            renderProducts(d.results || [], grid);
+        } catch(e) { grid.innerHTML = '<p>Error loading products</p>'; }
+    }
+
+    // ─── SEARCH ───
+    async function handleSearch(e) {
+        if(e.key !== 'Enter') return;
+        const q = document.getElementById('searchInput').value.trim();
+        if(!q) return;
+        nav('home');
+        document.getElementById('viewTitle').textContent = 'Results for "'+q+'"';
+        const grid = document.getElementById('mainGrid');
+        grid.innerHTML = '<div class="loading">Searching...</div>';
+        try {
+            const r = await fetch(API+'/search/?q='+encodeURIComponent(q));
+            const d = await r.json();
+            renderProducts(d.products || [], grid);
+            if(d.count !== undefined) document.getElementById('viewTitle').textContent = d.count + ' results for "'+q+'"';
+        } catch(e) { grid.innerHTML = '<p>Search error</p>'; }
+    }
+
+    // ─── PRODUCT DETAILS ───
+    async function openDetails(id) {
+        const dc = document.getElementById('detailContent');
+        dc.innerHTML = '<div class="loading">Loading...</div>';
+        nav('details');
+        try {
+            const r = await fetch(API+'/products/'+id+'/');
+            const p = await r.json();
+            const img = p.display_image || p.image_url || p.image || '';
+            dc.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px;background:white;padding:40px;border-radius:4px">' +
+                '<img src="'+img+'" style="width:100%;border-radius:8px" onerror="this.src=\'https://via.placeholder.com/400x300?text=No+Image\'">' +
+                '<div>' +
+                '<h2>'+p.name+'</h2>' +
+                '<div class="price" style="font-size:2rem;margin:15px 0">₹'+fmtPrice(p.price)+'</div>' +
+                (p.compare_price ? '<span style="text-decoration:line-through;color:#999">₹'+p.compare_price+'</span> <span style="color:green;font-weight:600">'+p.discount_percentage+'% off</span>' : '') +
+                '<p style="margin:20px 0;color:#555">'+p.description+'</p>' +
+                '<p style="font-size:0.85rem;color:#888">Category: '+(p.category ? p.category.name : 'N/A')+' | Stock: '+p.stock+'</p>' +
+                '<p style="font-size:0.85rem;color:#888">Seller: '+(p.seller ? (p.seller.shop_name || p.seller.first_name) : 'N/A')+'</p>' +
+                '<button class="btn" style="background:var(--fk-blue);width:48%;margin-right:4%" onclick="addToCart('+p.id+')">ADD TO CART</button>' +
+                '<button class="btn" style="background:var(--orange);width:48%" onclick="addToWish('+p.id+')">WISHLIST</button>' +
+                '<button class="btn" style="background:#888;width:100%" onclick="nav(\'home\')">Back to Shop</button>' +
+                '</div></div>';
+        } catch(e) { dc.innerHTML = '<p>Error loading product</p>'; }
+    }
+
+    // ─── CART ───
+    async function addToCart(productId) {
+        if(!TM.loggedIn()) { toast('Please login first'); nav('login'); return; }
+        try {
+            const r = await apiFetch('/cart/', { method:'POST', body:JSON.stringify({product:productId, quantity:1}) });
+            if(r.ok) { toast('Added to cart!'); updateBadges(); }
+            else { const d = await r.json(); toast(d.detail || 'Error adding to cart'); }
+        } catch { toast('Network error'); }
+    }
+
+    async function renderCart() {
+        if(!TM.loggedIn()) { document.getElementById('cartDisplay').innerHTML='<p style="padding:40px;text-align:center">Please login to view cart</p>'; document.getElementById('cartSummary').innerHTML=''; return; }
+        const disp = document.getElementById('cartDisplay');
+        const summary = document.getElementById('cartSummary');
+        disp.innerHTML = '<div class="loading">Loading cart...</div>';
+        try {
+            const r = await apiFetch('/cart/');
+            const d = await r.json();
+            if(!d.items || d.items.length === 0) { disp.innerHTML='<p style="padding:40px;text-align:center">Cart is empty</p>'; summary.innerHTML=''; return; }
+            disp.innerHTML = '';
+            d.items.forEach(item => {
+                const p = item.product_detail || {};
+                const img = p.display_image || p.image_url || p.image || '';
+                disp.innerHTML += '<div class="item-row">' +
+                    '<img src="'+img+'" onerror="this.src=\'https://via.placeholder.com/100\'">' +
+                    '<div style="flex:1"><h4>'+p.name+'</h4><div class="price">₹'+p.price+'</div>' +
+                    '<button class="qty-btn" onclick="updateCartQty('+item.id+','+(item.quantity-1)+')">-</button>' +
+                    '<span style="margin:0 10px">'+item.quantity+'</span>' +
+                    '<button class="qty-btn" onclick="updateCartQty('+item.id+','+(item.quantity+1)+')">+</button>' +
+                    '<button onclick="removeCartItem('+item.id+')" style="color:red;margin-left:20px;border:none;background:none;cursor:pointer;font-weight:600">REMOVE</button>' +
+                    '</div></div>';
+            });
+            summary.innerHTML = '<div style="background:white;padding:20px;border:1px solid #ddd;margin:10px 0;border-radius:4px">' +
+                '<h3>Total: ₹'+d.total_price+' ('+d.total_items+' items)</h3>' +
+                '<button class="btn" style="background:var(--orange);width:200px" onclick="nav(\'checkout\')">Proceed to Checkout</button></div>';
+        } catch { disp.innerHTML = '<p>Error loading cart</p>'; }
+    }
+
+    async function updateCartQty(cartItemId, newQty) {
+        if(newQty < 1) { removeCartItem(cartItemId); return; }
+        await apiFetch('/cart/'+cartItemId+'/', { method:'PATCH', body:JSON.stringify({quantity:newQty}) });
+        renderCart(); updateBadges();
+    }
+
+    async function removeCartItem(cartItemId) {
+        await apiFetch('/cart/'+cartItemId+'/', { method:'DELETE' });
+        renderCart(); updateBadges(); toast('Item removed');
+    }
+
+    // ─── WISHLIST ───
+    async function addToWish(productId) {
+        if(!TM.loggedIn()) { toast('Please login first'); nav('login'); return; }
+        try {
+            const r = await apiFetch('/wishlist/', { method:'POST', body:JSON.stringify({product:productId}) });
+            if(r.ok) { toast('Added to wishlist!'); updateBadges(); }
+            else { const d = await r.json(); toast(d.detail || d.non_field_errors?.[0] || 'Already in wishlist'); }
+        } catch { toast('Network error'); }
+    }
+
+    async function renderWish() {
+        if(!TM.loggedIn()) { document.getElementById('wishDisplay').innerHTML='<p>Please login to view wishlist</p>'; return; }
+        const disp = document.getElementById('wishDisplay');
+        disp.innerHTML = '<div class="loading">Loading...</div>';
+        try {
+            const r = await apiFetch('/wishlist/');
+            const d = await r.json();
+            const items = d.results || d;
+            if(!items.length) { disp.innerHTML='<p>Wishlist is empty</p>'; return; }
+            disp.innerHTML = '';
+            items.forEach(item => {
+                const p = item.product_detail || {};
+                const img = p.display_image || p.image_url || p.image || '';
+                disp.innerHTML += '<div class="card">' +
+                    '<img src="'+img+'" onerror="this.src=\'https://via.placeholder.com/200x160?text=No+Image\'">' +
+                    '<h4>'+p.name+'</h4><div class="price">₹'+p.price+'</div>' +
+                    '<button class="btn" style="background:var(--fk-blue)" onclick="addToCart('+p.id+')">Add to Cart</button>' +
+                    '<button class="btn" style="background:red" onclick="removeWish('+item.id+')">Remove</button></div>';
+            });
+        } catch { disp.innerHTML = '<p>Error loading wishlist</p>'; }
+    }
+
+    async function removeWish(id) {
+        await apiFetch('/wishlist/'+id+'/', { method:'DELETE' });
+        renderWish(); updateBadges(); toast('Removed from wishlist');
+    }
+
+    // ─── BADGES ───
+    async function updateBadges() {
+        if(!TM.loggedIn()) { document.getElementById('cBadge').textContent='0'; document.getElementById('wBadge').textContent='0'; return; }
+        try {
+            const [cr, wr] = await Promise.all([apiFetch('/cart/'), apiFetch('/wishlist/')]);
+            const cd = await cr.json(); const wd = await wr.json();
+            document.getElementById('cBadge').textContent = cd.total_items || cd.items?.length || 0;
+            document.getElementById('wBadge').textContent = (wd.results || wd).length || 0;
+        } catch {}
+    }
+
+    // ─── CHECKOUT / ORDERS ───
+    document.getElementById('payMethod').addEventListener('change', function() {
+        document.getElementById('upiFields').style.display = this.value === 'upi' ? 'block' : 'none';
+        document.getElementById('bankFields').style.display = this.value === 'bank_transfer' ? 'block' : 'none';
+    });
+
+    async function placeOrder() {
+        const orderData = {
+            payment_method: document.getElementById('payMethod').value,
+            shipping_name: document.getElementById('shipName').value,
+            shipping_phone: document.getElementById('shipPhone').value,
+            shipping_address: document.getElementById('shipAddr').value,
+            shipping_city: document.getElementById('shipCity').value,
+            shipping_state: document.getElementById('shipState').value,
+            shipping_pincode: document.getElementById('shipPin').value,
+        };
+        if(!orderData.shipping_name || !orderData.shipping_phone || !orderData.shipping_address || !orderData.shipping_city || !orderData.shipping_state || !orderData.shipping_pincode) {
+            toast('Please fill all shipping details'); return;
+        }
+        try {
+            const r = await apiFetch('/orders/create/', { method:'POST', body:JSON.stringify(orderData) });
+            const d = await r.json();
+            if(!r.ok) { toast(d.error || 'Order failed'); return; }
+            // If not COD, process payment
+            if(orderData.payment_method !== 'cod') {
+                const payData = { method: orderData.payment_method };
+                if(orderData.payment_method === 'upi') payData.upi_id = document.getElementById('upiId').value;
+                if(orderData.payment_method === 'bank_transfer') {
+                    payData.bank_name = document.getElementById('bankName').value;
+                    payData.account_number = document.getElementById('bankAcc').value;
+                    payData.ifsc_code = document.getElementById('bankIfsc').value;
+                }
+                const pr = await apiFetch('/orders/'+d.order_id+'/pay/', { method:'POST', body:JSON.stringify(payData) });
+                if(!pr.ok) { const pd = await pr.json(); toast(Object.values(pd).flat().join(', ') || 'Payment failed'); return; }
+            }
+            toast('Order placed successfully!');
+            updateBadges();
+            nav('orders');
+        } catch { toast('Network error'); }
+    }
+
+    async function renderOrders() {
+        if(!TM.loggedIn()) { document.getElementById('ordersDisplay').innerHTML='<p>Please login to view orders</p>'; return; }
+        const disp = document.getElementById('ordersDisplay');
+        disp.innerHTML = '<div class="loading">Loading...</div>';
+        try {
+            const r = await apiFetch('/orders/');
+            const d = await r.json();
+            const orders = d.results || d;
+            if(!orders.length) { disp.innerHTML='<p style="padding:20px">No orders yet</p>'; return; }
+            disp.innerHTML = '';
+            orders.forEach(o => {
+                const statusColor = o.status === 'delivered' ? 'green' : o.status === 'cancelled' ? 'red' : 'var(--fk-blue)';
+                disp.innerHTML += '<div style="background:white;padding:20px;margin-bottom:10px;border-radius:4px;border-left:4px solid '+statusColor+'">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                    '<div><strong>Order #'+o.order_id.substring(0,8)+'</strong><br><span style="color:#888;font-size:0.85rem">'+new Date(o.created_at).toLocaleDateString()+'</span></div>' +
+                    '<div style="text-align:right"><span style="background:'+statusColor+';color:white;padding:4px 12px;border-radius:12px;font-size:0.8rem">'+o.status.toUpperCase()+'</span><br><strong style="font-size:1.1rem">₹'+o.total+'</strong></div>' +
+                    '</div></div>';
+            });
+        } catch { disp.innerHTML = '<p>Error loading orders</p>'; }
+    }
+
+    // ─── SELLER ───
+    async function addSellerProduct() {
+        if(!TM.loggedIn()) { toast('Please login as seller'); nav('login'); return; }
+        const fd = new FormData();
+        fd.append('name', document.getElementById('sellerName').value);
+        fd.append('category', document.getElementById('sellerCat').value);
+        fd.append('price', document.getElementById('sellerPrice').value);
+        fd.append('stock', document.getElementById('sellerStock').value || 50);
+        fd.append('description', document.getElementById('sellerDesc').value || 'Authentic tribal product');
+        const imgFile = document.getElementById('sellerImage').files[0];
+        const imgUrl = document.getElementById('sellerImgUrl').value;
+        if(imgFile) fd.append('image', imgFile);
+        else if(imgUrl) fd.append('image_url', imgUrl);
+        try {
+            const r = await apiFetch('/products/seller/', { method:'POST', body:fd });
+            if(r.ok) { toast('Product listed! Pending admin approval.'); loadSellerProducts(); }
+            else { const d = await r.json(); toast(Object.values(d).flat().join(', ') || 'Error listing product'); }
+        } catch { toast('Network error'); }
+    }
+
+    async function loadSellerProducts() {
+        if(!TM.loggedIn()) return;
+        const disp = document.getElementById('sellerProducts');
+        try {
+            const r = await apiFetch('/products/seller/');
+            const d = await r.json();
+            const items = d.results || d;
+            if(!items.length) { disp.innerHTML='<p style="color:#888">No products listed yet</p>'; return; }
+            disp.innerHTML = '';
+            items.forEach(p => {
+                const statusColor = p.status === 'approved' ? 'green' : p.status === 'rejected' ? 'red' : '#ff9800';
+                disp.innerHTML += '<div style="background:#f9f9f9;padding:12px;margin:8px 0;border-radius:4px;display:flex;justify-content:space-between;align-items:center">' +
+                    '<span>'+p.name+' — ₹'+p.price+'</span>' +
+                    '<span style="background:'+statusColor+';color:white;padding:2px 10px;border-radius:10px;font-size:0.75rem">'+(p.status||'pending').toUpperCase()+'</span></div>';
+            });
+        } catch { disp.innerHTML = '<p>Error loading products</p>'; }
+    }
+
+    // ─── FEEDBACK ───
+    function addFeedback() {
+        const val = document.getElementById('feedInput').value;
+        if(val) {
+            const name = TM.loggedIn() ? (TM.getUser().first_name || 'You') : 'Guest';
+            document.getElementById('feedbackList').innerHTML += '<div class="feedback-item"><strong>'+name+':</strong> '+val+'</div>';
+            document.getElementById('feedInput').value = '';
+            toast('Feedback submitted!');
+        }
+    }
+
+    // ─── INIT ───
+    async function init() {
+        // Clear stale tokens: verify the token is valid
+        if(TM.get()) {
+            try {
+                const r = await fetch(API+'/accounts/profile/', { headers: {'Authorization': 'Bearer ' + TM.get()} });
+                if(r.status === 401) {
+                    const refreshed = await TM.refresh();
+                    if(!refreshed) TM.clear();
+                }
+            } catch { /* network error, keep tokens */ }
+        }
+        await loadCategories();
+        await loadAll(document.querySelector('.cat-btn'));
+        updateAuthUI();
+        if(TM.loggedIn()) updateBadges();
+    }
+    init();
+    </script>
+</body>
+</html>
