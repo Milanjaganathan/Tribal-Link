@@ -11,7 +11,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'description', 'image', 'product_count']
+        fields = ['id', 'name', 'slug', 'description', 'image', 'icon', 'product_count']
 
     def get_product_count(self, obj):
         return obj.products.filter(status='approved').count()
@@ -28,8 +28,8 @@ class ProductReviewSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ProductReview
-        fields = ['id', 'user', 'rating', 'comment', 'created_at']
-        read_only_fields = ['id', 'user', 'created_at']
+        fields = ['id', 'user', 'rating', 'comment', 'image', 'is_approved', 'created_at']
+        read_only_fields = ['id', 'user', 'is_approved', 'created_at']
 
 
 class ProductListSerializer(serializers.ModelSerializer):
@@ -37,18 +37,22 @@ class ProductListSerializer(serializers.ModelSerializer):
 
     category_name = serializers.CharField(source='category.name', read_only=True)
     seller_name = serializers.CharField(source='seller.shop_name', read_only=True)
+    seller_email = serializers.CharField(source='seller.email', read_only=True)
+    seller_phone = serializers.CharField(source='seller.phone', read_only=True)
     display_image = serializers.ReadOnlyField()
     discount_percentage = serializers.ReadOnlyField()
     average_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
         fields = [
             'id', 'name', 'slug', 'price', 'compare_price',
             'display_image', 'image', 'image_url',
-            'category', 'category_name', 'seller_name',
+            'category', 'category_name', 'seller', 'seller_name',
+            'seller_email', 'seller_phone',
             'stock', 'is_featured', 'discount_percentage',
-            'average_rating', 'created_at',
+            'average_rating', 'review_count', 'status', 'created_at',
         ]
 
     def get_average_rating(self, obj):
@@ -56,6 +60,9 @@ class ProductListSerializer(serializers.ModelSerializer):
         if reviews.exists():
             return round(sum(r.rating for r in reviews) / reviews.count(), 1)
         return None
+
+    def get_review_count(self, obj):
+        return obj.reviews.count()
 
 
 class ProductDetailSerializer(serializers.ModelSerializer):

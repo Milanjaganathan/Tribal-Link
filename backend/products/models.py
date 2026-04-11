@@ -1,9 +1,10 @@
 """
 Products App — Models
-Category, Product, and ProductImage models with admin verification workflow.
+Category, Product, ProductImage, and ProductReview models with admin verification workflow.
 """
 from django.db import models
 from django.conf import settings
+from django.db.models import Avg
 
 
 class Category(models.Model):
@@ -13,6 +14,7 @@ class Category(models.Model):
     slug = models.SlugField(max_length=200, unique=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to='categories/', blank=True, null=True)
+    icon = models.CharField(max_length=50, blank=True, help_text='Font Awesome icon class')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -93,6 +95,15 @@ class Product(models.Model):
             return self.image.url
         return self.image_url or ''
 
+    @property
+    def average_rating(self):
+        avg = self.reviews.aggregate(avg=Avg('rating'))['avg']
+        return round(avg, 1) if avg else None
+
+    @property
+    def review_count(self):
+        return self.reviews.count()
+
     def save(self, *args, **kwargs):
         if not self.slug:
             from django.utils.text import slugify
@@ -127,7 +138,7 @@ class ProductImage(models.Model):
 
 
 class ProductReview(models.Model):
-    """Customer reviews for products."""
+    """Customer reviews for products with photo upload support."""
 
     product = models.ForeignKey(
         Product,
@@ -143,6 +154,8 @@ class ProductReview(models.Model):
         choices=[(i, str(i)) for i in range(1, 6)],
     )
     comment = models.TextField()
+    image = models.ImageField(upload_to='reviews/', blank=True, null=True)
+    is_approved = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

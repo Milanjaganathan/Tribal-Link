@@ -1,258 +1,139 @@
-/**
- * TribalLink API Integration Layer
- * Connects the frontend HTML/JS to the Django REST API backend.
- */
+/* ═══════════════════════════════════════════
+   TRIBAL LINK — API Client & Auth Module
+   ═══════════════════════════════════════════ */
 
-const API_BASE = 'http://127.0.0.1:8000/api';
+const API_BASE = '/api';
 
-// ─── Token Management ───
+// ── Token Management ──
 const TokenManager = {
-    getAccess: () => localStorage.getItem('tl_access_token'),
-    getRefresh: () => localStorage.getItem('tl_refresh_token'),
+    getAccess: () => localStorage.getItem('tl_access'),
+    getRefresh: () => localStorage.getItem('tl_refresh'),
     getUser: () => JSON.parse(localStorage.getItem('tl_user') || 'null'),
-    
-    save(data) {
-        if (data.access) localStorage.setItem('tl_access_token', data.access);
-        if (data.refresh) localStorage.setItem('tl_refresh_token', data.refresh);
+    set(data) {
+        if (data.tokens) {
+            localStorage.setItem('tl_access', data.tokens.access);
+            localStorage.setItem('tl_refresh', data.tokens.refresh);
+        }
+        if (data.access) localStorage.setItem('tl_access', data.access);
+        if (data.refresh) localStorage.setItem('tl_refresh', data.refresh);
         if (data.user) localStorage.setItem('tl_user', JSON.stringify(data.user));
     },
-    
     clear() {
-        localStorage.removeItem('tl_access_token');
-        localStorage.removeItem('tl_refresh_token');
+        localStorage.removeItem('tl_access');
+        localStorage.removeItem('tl_refresh');
         localStorage.removeItem('tl_user');
     },
-    
     isLoggedIn() { return !!this.getAccess(); },
-
-    async refresh() {
-        const refreshToken = this.getRefresh();
-        if (!refreshToken) return false;
-        try {
-            const res = await fetch(`${API_BASE}/accounts/token/refresh/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh: refreshToken }),
-            });
-            if (!res.ok) { this.clear(); return false; }
-            const data = await res.json();
-            this.save(data);
-            return true;
-        } catch { this.clear(); return false; }
-    }
+    getRole() { const u = this.getUser(); return u ? u.role : null; },
 };
 
-// ─── Fetch Wrapper with Auth ───
-async function apiFetch(endpoint, options = {}) {
-    const headers = { 'Content-Type': 'application/json', ...options.headers };
+// ── API Client ──
+async function apiCall(endpoint, options = {}) {
+    const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+    const headers = options.headers || {};
+    
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
+    
     const token = TokenManager.getAccess();
     if (token) headers['Authorization'] = `Bearer ${token}`;
     
-    // Remove Content-Type for FormData
-    if (options.body instanceof FormData) delete headers['Content-Type'];
-    
-    let res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-    
-    // Auto-refresh on 401
-    if (res.status === 401 && TokenManager.getRefresh()) {
-        const refreshed = await TokenManager.refresh();
-        if (refreshed) {
-            headers['Authorization'] = `Bearer ${TokenManager.getAccess()}`;
-            res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-        }
+    const config = { ...options, headers };
+    if (options.body && !(options.body instanceof FormData) && typeof options.body === 'object') {
+        config.body = JSON.stringify(options.body);
     }
-    return res;
-}
-
-// ─── Auth API ───
-const AuthAPI = {
-    async register(data) {
-        const res = await fetch(`${API_BASE}/accounts/register/`, {
+    
+    let response = await fetch(url, config);
+    
+    // Token refresh on 401
+    if (response.status === 401 && TokenManager.getRefresh()) {
+        const refreshResp = await fetch(`${API_BASE}/accounts/token/refresh/`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        });
-        const json = await res.json();
-        if (res.ok && json.tokens) TokenManager.save({ ...json.tokens, user: json.user });
-        return { ok: res.ok, data: json };
-    },
-    
-    async login(email, password) {
-        const res = await fetch(`${API_BASE}/accounts/login/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password }),
-        });
-        const json = await res.json();
-        if (res.ok) TokenManager.save({ access: json.access, refresh: json.refresh, user: json.user });
-        return { ok: res.ok, data: json };
-    },
-    
-    async logout() {
-        await apiFetch('/accounts/logout/', {
-            method: 'POST',
             body: JSON.stringify({ refresh: TokenManager.getRefresh() }),
         });
-        TokenManager.clear();
-    },
-    
-    async getProfile() {
-        const res = await apiFetch('/accounts/profile/');
-        return res.ok ? await res.json() : null;
+        if (refreshResp.ok) {
+            const data = await refreshResp.json();
+            TokenManager.set(data);
+            headers['Authorization'] = `Bearer ${data.access}`;
+            response = await fetch(url, { ...config, headers });
+        } else {
+            TokenManager.clear();
+            App.navigate('login');
+            throw new Error('Session expired. Please login again.');
+        }
     }
+    
+    if (!response.ok) {
+        const err = await response.json().catch(() => ({ error: 'Request failed' }));
+        throw new Error(err.detail || err.error || JSON.stringify(err));
+    }
+    
+    if (response.status === 204) return {};
+    return response.json();
+}
+
+const api = {
+    get: (url) => apiCall(url),
+    post: (url, body) => apiCall(url, { method: 'POST', body }),
+    put: (url, body) => apiCall(url, { method: 'PUT', body }),
+    patch: (url, body) => apiCall(url, { method: 'PATCH', body }),
+    delete: (url) => apiCall(url, { method: 'DELETE' }),
+    upload: (url, formData) => apiCall(url, { method: 'POST', body: formData }),
 };
 
-// ─── Products API ───
-const ProductsAPI = {
-    async list(params = {}) {
-        const query = new URLSearchParams(params).toString();
-        const res = await apiFetch(`/products/?${query}`);
-        return res.ok ? await res.json() : { results: [] };
-    },
-    
-    async detail(id) {
-        const res = await apiFetch(`/products/${id}/`);
-        return res.ok ? await res.json() : null;
-    },
-    
-    async categories() {
-        const res = await apiFetch('/products/categories/');
-        return res.ok ? await res.json() : [];
-    },
-    
-    async featured() {
-        const res = await apiFetch('/products/featured/');
-        return res.ok ? await res.json() : [];
-    },
-    
-    async sellerAdd(formData) {
-        const res = await apiFetch('/products/seller/', {
-            method: 'POST', body: formData,
-        });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async sellerList() {
-        const res = await apiFetch('/products/seller/');
-        return res.ok ? await res.json() : { results: [] };
+// ── Toast Notifications ──
+function showToast(message, type = 'info') {
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
     }
-};
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', info: 'fa-info-circle' };
+    toast.innerHTML = `<i class="fas ${icons[type] || icons.info}"></i><span>${message}</span><button class="toast-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+}
 
-// ─── Cart API ───
-const CartAPI = {
-    async list() {
-        const res = await apiFetch('/cart/');
-        return res.ok ? await res.json() : { items: [], total_items: 0, total_price: '0' };
-    },
-    
-    async add(productId, quantity = 1) {
-        const res = await apiFetch('/cart/', {
-            method: 'POST',
-            body: JSON.stringify({ product: productId, quantity }),
-        });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async update(cartItemId, quantity) {
-        const res = await apiFetch(`/cart/${cartItemId}/`, {
-            method: 'PATCH',
-            body: JSON.stringify({ quantity }),
-        });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async remove(cartItemId) {
-        const res = await apiFetch(`/cart/${cartItemId}/`, { method: 'DELETE' });
-        return res.ok;
-    },
-    
-    async clear() {
-        const res = await apiFetch('/cart/clear/', { method: 'DELETE' });
-        return res.ok;
+// ── Utility ──
+function formatPrice(price) { return `₹${parseFloat(price).toLocaleString('en-IN')}`; }
+function formatDate(dateStr) { return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function formatDateTime(dateStr) { return new Date(dateStr).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+function timeAgo(dateStr) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    return days < 30 ? `${days}d ago` : formatDate(dateStr);
+}
+function renderStars(rating) {
+    let s = '';
+    for (let i = 1; i <= 5; i++) {
+        s += `<i class="fa${i <= Math.round(rating || 0) ? 's' : 'r'} fa-star"></i>`;
     }
-};
-
-// ─── Wishlist API ───
-const WishlistAPI = {
-    async list() {
-        const res = await apiFetch('/wishlist/');
-        return res.ok ? await res.json() : { results: [] };
-    },
-    
-    async add(productId) {
-        const res = await apiFetch('/wishlist/', {
-            method: 'POST',
-            body: JSON.stringify({ product: productId }),
-        });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async remove(wishlistItemId) {
-        const res = await apiFetch(`/wishlist/${wishlistItemId}/`, { method: 'DELETE' });
-        return res.ok;
-    }
-};
-
-// ─── Orders API ───
-const OrdersAPI = {
-    async create(orderData) {
-        const res = await apiFetch('/orders/create/', {
-            method: 'POST',
-            body: JSON.stringify(orderData),
-        });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async list() {
-        const res = await apiFetch('/orders/');
-        return res.ok ? await res.json() : { results: [] };
-    },
-    
-    async detail(orderId) {
-        const res = await apiFetch(`/orders/${orderId}/`);
-        return res.ok ? await res.json() : null;
-    },
-    
-    async pay(orderId, paymentData) {
-        const res = await apiFetch(`/orders/${orderId}/pay/`, {
-            method: 'POST',
-            body: JSON.stringify(paymentData),
-        });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async cancel(orderId) {
-        const res = await apiFetch(`/orders/${orderId}/cancel/`, { method: 'POST' });
-        return { ok: res.ok, data: await res.json() };
-    },
-    
-    async track(orderId) {
-        const res = await apiFetch(`/orders/${orderId}/track/`);
-        return res.ok ? await res.json() : null;
-    }
-};
-
-// ─── Search API ───
-const SearchAPI = {
-    async search(query, params = {}) {
-        const p = new URLSearchParams({ q: query, ...params }).toString();
-        const res = await apiFetch(`/search/?${p}`);
-        return res.ok ? await res.json() : { products: [], count: 0 };
-    },
-    
-    async suggestions(query) {
-        const res = await apiFetch(`/search/suggestions/?q=${encodeURIComponent(query)}`);
-        return res.ok ? await res.json() : { suggestions: [] };
-    },
-    
-    async voiceSearch(audioBlob) {
-        const formData = new FormData();
-        formData.append('audio', audioBlob, 'voice.wav');
-        const res = await apiFetch('/search/voice/', { method: 'POST', body: formData });
-        return { ok: res.ok, data: await res.json() };
-    }
-};
-
-// Export for use
-window.TribalLinkAPI = { TokenManager, AuthAPI, ProductsAPI, CartAPI, WishlistAPI, OrdersAPI, SearchAPI };
-console.log('TribalLink API loaded. Access via window.TribalLinkAPI');
+    return s;
+}
+function getProductImage(product) {
+    if (product.image) return product.image;
+    if (product.display_image) return product.display_image;
+    if (product.image_url) return product.image_url;
+    return 'https://placehold.co/400x300/1a1a2e/8B5CF6?text=No+Image';
+}
+function getInitials(user) {
+    if (!user) return '?';
+    const f = user.first_name || user.username || '';
+    const l = user.last_name || '';
+    return (f[0] || '') + (l[0] || '');
+}
+function debounce(fn, delay) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+}

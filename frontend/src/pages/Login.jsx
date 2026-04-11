@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { FaEnvelope, FaLock, FaUser, FaPhone, FaStore } from 'react-icons/fa';
 import './Login.css';
 
 export default function Login() {
@@ -47,14 +48,14 @@ export default function Login() {
   return (
     <div className="auth-page">
       <div className="auth-card">
-        <h2>{isRegister ? 'Create Account' : 'User Login'}</h2>
+        <h2>{isRegister ? '✦ Create Account' : '✦ Welcome Back'}</h2>
 
         {!isRegister ? (
           <form onSubmit={handleLogin}>
-            <input type="email" placeholder="Email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+            <input type="email" placeholder="Email address" value={form.email} onChange={(e) => set('email', e.target.value)} />
             <input type="password" placeholder="Password" value={form.password} onChange={(e) => set('password', e.target.value)} />
             <button className="btn btn-primary" type="submit" disabled={loading}>
-              {loading ? 'Logging in...' : 'Continue'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </button>
             <p className="auth-switch">
               New to TribalLink? <span onClick={() => setIsRegister(true)}>Create an account</span>
@@ -67,23 +68,25 @@ export default function Login() {
               <input placeholder="Last Name" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} />
             </div>
             <input placeholder="Username" value={form.username} onChange={(e) => set('username', e.target.value)} />
-            <input type="email" placeholder="Email" value={form.email} onChange={(e) => set('email', e.target.value)} />
+            <input type="email" placeholder="Email address" value={form.email} onChange={(e) => set('email', e.target.value)} />
             <input placeholder="Phone Number" value={form.phone} onChange={(e) => set('phone', e.target.value)} />
-            <input type="password" placeholder="Password (min 8 chars)" value={form.password} onChange={(e) => set('password', e.target.value)} />
+            <input type="password" placeholder="Password (min 8 characters)" value={form.password} onChange={(e) => set('password', e.target.value)} />
             <input type="password" placeholder="Confirm Password" value={form.password2} onChange={(e) => set('password2', e.target.value)} />
             <select value={form.role} onChange={(e) => set('role', e.target.value)}>
-              <option value="customer">Customer</option>
-              <option value="seller">Seller / Artisan</option>
+              <option value="customer">🛒 Customer</option>
+              <option value="seller">🎨 Seller / Artisan</option>
             </select>
             <button className="btn btn-green" type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Register'}
+              {loading ? 'Creating account...' : 'Create Account'}
             </button>
             <p className="auth-switch">
-              Already have an account? <span onClick={() => setIsRegister(false)}>Login</span>
+              Already have an account? <span onClick={() => setIsRegister(false)}>Sign in</span>
             </p>
           </form>
         )}
-        <Link to="/" className="btn btn-gray" style={{ display: 'block', textAlign: 'center', textDecoration: 'none' }}>Back to Home</Link>
+
+        <div className="auth-divider">or</div>
+        <Link to="/" className="btn btn-gray" style={{ display: 'flex', textDecoration: 'none' }}>← Back to Home</Link>
       </div>
     </div>
   );

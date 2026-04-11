@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ProductsAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
 import './Home.css';
 
 export default function Home() {
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [activeCat, setActiveCat] = useState(null);
@@ -27,40 +29,88 @@ export default function Home() {
   };
 
   return (
-    <div className="home-layout">
-      <aside className="sidebar">
-        <h3 className="sidebar-title">CATEGORIES</h3>
-        <div
-          className={`cat-btn ${activeCat === null ? 'active' : ''}`}
-          onClick={() => loadProducts(null, 'All Products')}
-        >
-          All Products
-        </div>
-        {categories.map((c) => (
-          <div
-            key={c.id}
-            className={`cat-btn ${activeCat === c.id ? 'active' : ''}`}
-            onClick={() => loadProducts(c.id, c.name)}
-          >
-            {c.name} <span className="cat-count">({c.product_count})</span>
+    <>
+      {/* ═══ Hero Banner ═══ */}
+      <section className="hero">
+        <div className="hero-content">
+          <div className="hero-tag">✦ Authentic Handcrafted Art</div>
+          <h1>Discover the Soul of <span>Tribal India</span></h1>
+          <p>
+            Explore hand-crafted masterpieces directly from India's tribal artisans.
+            Every purchase preserves centuries of cultural heritage and empowers indigenous communities.
+          </p>
+          <div className="hero-actions">
+            <button className="btn btn-gold" onClick={() => {
+              document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}>
+              Explore Collection
+            </button>
+            <button className="btn btn-outline" style={{ borderColor: 'rgba(255,255,255,0.3)', color: 'white' }}
+              onClick={() => navigate('/seller')}>
+              Become an Artisan
+            </button>
           </div>
-        ))}
-      </aside>
+          <div className="hero-stats">
+            <div className="hero-stat">
+              <div className="stat-value">500+</div>
+              <div className="stat-label">Artisan Products</div>
+            </div>
+            <div className="hero-stat">
+              <div className="stat-value">50+</div>
+              <div className="stat-label">Tribal Communities</div>
+            </div>
+            <div className="hero-stat">
+              <div className="stat-value">10K+</div>
+              <div className="stat-label">Happy Customers</div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <main className="main-content">
-        <h2 className="page-title">{title}</h2>
+      {/* ═══ Category Pills ═══ */}
+      <section className="categories-section">
+        <div className="section-header">
+          <h2>Browse Categories</h2>
+        </div>
+        <div className="category-pills">
+          <div
+            className={`cat-pill ${activeCat === null ? 'active' : ''}`}
+            onClick={() => loadProducts(null, 'All Products')}
+          >
+            🎨 All
+          </div>
+          {categories.map((c) => (
+            <div
+              key={c.id}
+              className={`cat-pill ${activeCat === c.id ? 'active' : ''}`}
+              onClick={() => loadProducts(c.id, c.name)}
+            >
+              {c.name} <span className="cat-count">({c.product_count})</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ═══ Products Grid ═══ */}
+      <section id="products-section" style={{ padding: '0 6%', maxWidth: 1400, margin: '0 auto' }}>
+        <div className="section-header">
+          <h2>{title}</h2>
+        </div>
         {loading ? (
-          <div className="loading">Loading products...</div>
+          <div className="loading-screen">
+            <div className="spinner"></div>
+            <span>Loading artisan products...</span>
+          </div>
         ) : products.length === 0 ? (
-          <div className="empty">No products found</div>
+          <div className="empty">No products found in this category</div>
         ) : (
-          <div className="product-grid">
+          <div className="product-grid stagger-children" style={{ paddingBottom: 40 }}>
             {products.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}
           </div>
         )}
-      </main>
-    </div>
+      </section>
+    </>
   );
 }

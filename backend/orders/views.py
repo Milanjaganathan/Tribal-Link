@@ -1,6 +1,6 @@
 """
 Orders App — Views
-Order creation, management, and payment processing.
+Order creation, management, payment processing, and notification triggers.
 """
 import uuid
 from django.utils import timezone
@@ -17,6 +17,47 @@ from .serializers import (
     OrderCreateSerializer,
     PaymentProcessSerializer,
 )
+
+
+def notify_order_event(order, event_type, title, message):
+    """Helper to send order-related notifications."""
+    try:
+        from notifications.models import Notification
+        Notification.send(
+            user=order.user,
+            notification_type=event_type,
+            title=title,
+            message=message,
+            link=f'/orders/{order.order_id}',
+        )
+    except Exception:
+        pass  # Notifications are best-effort
+
+
+def notify_seller_new_order(order):
+    """Notify sellers about new orders containing their products."""
+    try:
+        from notifications.models import Notification
+        seller_ids = order.items.values_list(
+            'product__seller', flat=True
+        ).distinct()
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        for seller_id in seller_ids:
+            if seller_id:
+                try:
+                    seller = User.objects.get(pk=seller_id)
+                    Notification.send(
+                        user=seller,
+                        notification_type='new_order',
+                        title='New Order Received!',
+                        message=f'You have a new order #{str(order.order_id)[:8]}. Total: ₹{order.total}',
+                        link=f'/seller/orders',
+                    )
+                except User.DoesNotExist:
+                    pass
+    except Exception:
+        pass
 
 
 class OrderCreateView(APIView):
@@ -136,6 +177,13 @@ class OrderCreateView(APIView):
             order.status = Order.Status.CONFIRMED
             order.save(update_fields=['status'])
 
+        # Send notifications
+        notify_order_event(
+            order, 'order_placed', 'Order Placed!',
+            f'Your order #{str(order.order_id)[:8]} has been placed successfully. Total: ₹{order.total}'
+        )
+        notify_seller_new_order(order)
+
         return Response(
             OrderDetailSerializer(order).data,
             status=status.HTTP_201_CREATED,
@@ -205,6 +253,11 @@ class OrderCancelView(APIView):
         order.status = Order.Status.CANCELLED
         order.save(update_fields=['status'])
 
+        notify_order_event(
+            order, 'order_cancelled', 'Order Cancelled',
+            f'Your order #{str(order.order_id)[:8]} has been cancelled.'
+        )
+
         return Response({'message': 'Order cancelled successfully.'})
 
 
@@ -250,7 +303,6 @@ class PaymentProcessView(APIView):
         )
 
         # Simulate payment processing
-        # In production, integrate with actual payment gateway
         payment.status = Payment.Status.SUCCESS
         payment.save(update_fields=['status'])
 
@@ -264,6 +316,12 @@ class PaymentProcessView(APIView):
             'payment_status', 'payment_method',
             'transaction_id', 'paid_at', 'status',
         ])
+
+        # Notify
+        notify_order_event(
+            order, 'payment_success', 'Payment Successful!',
+            f'Payment of ₹{payment.amount} for order #{str(order.order_id)[:8]} was successful.'
+        )
 
         return Response({
             'message': 'Payment processed successfully.',
@@ -300,6 +358,7 @@ class OrderTrackView(APIView):
                 'status': 'Order Placed',
                 'timestamp': order.created_at.isoformat(),
                 'completed': True,
+                'icon': 'fa-check-circle',
             },
         ]
 
@@ -308,6 +367,7 @@ class OrderTrackView(APIView):
                 'status': 'Payment Confirmed',
                 'timestamp': order.paid_at.isoformat(),
                 'completed': True,
+                'icon': 'fa-credit-card',
             })
 
         if order.status in ('confirmed', 'processing', 'shipped', 'delivered'):
@@ -315,38 +375,62 @@ class OrderTrackView(APIView):
                 'status': 'Order Confirmed',
                 'timestamp': order.updated_at.isoformat(),
                 'completed': True,
+                'icon': 'fa-clipboard-check',
             })
 
         if order.status in ('processing', 'shipped', 'delivered'):
             timeline.append({
-                'status': 'Processing',
+                'status': 'Packed & Processing',
                 'timestamp': order.updated_at.isoformat(),
                 'completed': True,
+                'icon': 'fa-box',
             })
 
-        if order.shipped_at:
-            timeline.append({
-                'status': 'Shipped',
-                'timestamp': order.shipped_at.isoformat(),
-                'completed': True,
-            })
+        shipped_completed = order.status in ('shipped', 'delivered')
+        timeline.append({
+            'status': 'Shipped',
+            'timestamp': order.shipped_at.isoformat() if order.shipped_at else None,
+            'completed': shipped_completed,
+            'icon': 'fa-shipping-fast',
+        })
 
-        if order.delivered_at:
-            timeline.append({
-                'status': 'Delivered',
-                'timestamp': order.delivered_at.isoformat(),
-                'completed': True,
-            })
+        delivered_completed = order.status == 'delivered'
+        timeline.append({
+            'status': 'Delivered',
+            'timestamp': order.delivered_at.isoformat() if order.delivered_at else None,
+            'completed': delivered_completed,
+            'icon': 'fa-home',
+        })
 
         if order.status == 'cancelled':
             timeline.append({
                 'status': 'Cancelled',
                 'timestamp': order.updated_at.isoformat(),
                 'completed': True,
+                'icon': 'fa-times-circle',
             })
 
         return Response({
             'order_id': str(order.order_id),
             'current_status': order.status,
+            'payment_status': order.payment_status,
+            'payment_method': order.payment_method,
+            'total': str(order.total),
             'timeline': timeline,
+        })
+
+
+class UPIInfoView(APIView):
+    """
+    GET /api/orders/upi-info/
+    Get UPI payment information (QR code details, UPI ID).
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        return Response({
+            'upi_id': 'triballink@upi',
+            'merchant_name': 'TribalLink Marketplace',
+            'note': 'Payment for TribalLink order',
+            'qr_data': 'upi://pay?pa=triballink@upi&pn=TribalLink&cu=INR',
         })

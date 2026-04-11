@@ -14,7 +14,7 @@ def api_root(request):
     """API root endpoint with available routes."""
     return JsonResponse({
         'message': 'Welcome to TribalLink API',
-        'version': '1.0.0',
+        'version': '2.0.0',
         'endpoints': {
             'admin': '/admin/',
             'accounts': '/api/accounts/',
@@ -23,13 +23,14 @@ def api_root(request):
             'wishlist': '/api/wishlist/',
             'orders': '/api/orders/',
             'search': '/api/search/',
+            'notifications': '/api/notifications/',
         }
     })
 
 
 urlpatterns = [
-    path('', api_root, name='api-root'),
-    path('app/', TemplateView.as_view(template_name='index.html'), name='frontend'),
+    path('api/', api_root, name='api-root'),
+    path('', TemplateView.as_view(template_name='index.html'), name='frontend'),
     path('admin/', admin.site.urls),
 
     # API endpoints
@@ -39,6 +40,7 @@ urlpatterns = [
     path('api/wishlist/', include('wishlist.urls')),
     path('api/orders/', include('orders.urls')),
     path('api/search/', include('search.urls')),
+    path('api/notifications/', include('notifications.urls')),
 ]
 
 # Serve media files in development

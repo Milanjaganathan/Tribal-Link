@@ -39,6 +39,9 @@ export const AuthAPI = {
   logout: (data) => API.post('/accounts/logout/', data),
   profile: () => API.get('/accounts/profile/'),
   updateProfile: (data) => API.put('/accounts/profile/', data),
+  verifyOtp: (data) => API.post('/accounts/verify-otp/', data),
+  resendOtp: (data) => API.post('/accounts/resend-otp/', data),
+  changePassword: (data) => API.post('/accounts/change-password/', data),
 };
 
 // ─── Products ───
@@ -48,7 +51,9 @@ export const ProductsAPI = {
   categories: () => API.get('/products/categories/'),
   featured: () => API.get('/products/featured/'),
   reviews: (id) => API.get(`/products/${id}/reviews/`),
-  addReview: (id, data) => API.post(`/products/${id}/reviews/`, data),
+  addReview: (id, data) => API.post(`/products/${id}/reviews/`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   sellerList: () => API.get('/products/seller/'),
   sellerAdd: (data) => API.post('/products/seller/', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -88,6 +93,35 @@ export const OrdersAPI = {
 export const SearchAPI = {
   search: (params) => API.get('/search/', { params }),
   suggestions: (q) => API.get('/search/suggestions/', { params: { q } }),
+};
+
+// ─── Notifications ───
+export const NotificationsAPI = {
+  list: () => API.get('/notifications/'),
+  unreadCount: () => API.get('/notifications/unread-count/'),
+  markRead: (id) => API.post(`/notifications/${id}/read/`),
+  markAllRead: () => API.post('/notifications/mark-all-read/'),
+};
+
+// ─── Admin ───
+export const AdminAPI = {
+  dashboard: () => API.get('/accounts/admin/dashboard/'),
+  users: (params) => API.get('/accounts/admin/users/', { params }),
+  userDetail: (id) => API.get(`/accounts/admin/users/${id}/`),
+  pendingSellers: () => API.get('/accounts/admin/sellers/pending/'),
+  approveSeller: (id, data) => API.post(`/accounts/admin/sellers/${id}/approve/`, data),
+  products: (params) => API.get('/accounts/admin/products/', { params }),
+  approveProduct: (id, data) => API.post(`/accounts/admin/products/${id}/approve/`, data),
+  orders: (params) => API.get('/accounts/admin/orders/', { params }),
+  reviews: () => API.get('/accounts/admin/reviews/'),
+  deleteReview: (id) => API.delete(`/accounts/admin/reviews/${id}/`),
+};
+
+// ─── Seller Dashboard ───
+export const SellerAPI = {
+  dashboard: () => API.get('/accounts/seller/dashboard/'),
+  orders: (params) => API.get('/accounts/seller/orders/', { params }),
+  updateOrderStatus: (orderId, data) => API.post(`/accounts/seller/orders/${orderId}/update-status/`, data),
 };
 
 export default API;

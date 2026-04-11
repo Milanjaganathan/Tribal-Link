@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SearchAPI } from '../services/api';
 import ProductCard from '../components/ProductCard';
+import { FaSearch } from 'react-icons/fa';
 
 export default function Search() {
   const [searchParams] = useSearchParams();
@@ -11,7 +12,7 @@ export default function Search() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!q) return;
+    if (!q) { setLoading(false); return; }
     setLoading(true);
     SearchAPI.search({ q })
       .then(({ data }) => { setProducts(data.products || []); setCount(data.count || 0); })
@@ -21,13 +22,23 @@ export default function Search() {
 
   return (
     <div className="page-container">
-      <h2 className="page-heading">{count} results for "{q}"</h2>
+      <h2 className="page-heading">
+        <FaSearch style={{ fontSize: '0.9em', marginRight: 8, opacity: 0.5 }} />
+        {count} results for "{q}"
+      </h2>
       {loading ? (
-        <p className="loading">Searching...</p>
+        <div className="loading-screen">
+          <div className="spinner"></div>
+          <span>Searching artisan products...</span>
+        </div>
       ) : products.length === 0 ? (
-        <p className="empty">No products found for "{q}"</p>
+        <div style={{ textAlign: 'center', padding: 'var(--space-4xl)' }}>
+          <div style={{ fontSize: '4rem', marginBottom: 16, opacity: 0.3 }}>🔍</div>
+          <h3 style={{ fontFamily: 'var(--font-display)', color: 'var(--gray-600)', marginBottom: 8 }}>No results found</h3>
+          <p style={{ color: 'var(--gray-400)' }}>Try different keywords or browse our categories</p>
+        </div>
       ) : (
-        <div className="product-grid">
+        <div className="product-grid stagger-children">
           {products.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
       )}

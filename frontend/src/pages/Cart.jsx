@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CartAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
+import { FaShoppingBag, FaArrowLeft } from 'react-icons/fa';
 import './Cart.css';
 
 export default function Cart({ onUpdate }) {
@@ -32,45 +33,90 @@ export default function Cart({ onUpdate }) {
   };
 
   const remove = async (id) => {
-    try { await CartAPI.remove(id); toast.success('Removed'); load(); } catch { toast.error('Error'); }
+    try { await CartAPI.remove(id); toast.success('Removed from cart'); load(); } catch { toast.error('Error'); }
   };
 
-  if (!isAuthenticated) return <div className="page-container"><p className="empty">Please login to view cart</p></div>;
-  if (loading) return <div className="page-container"><p className="loading">Loading cart...</p></div>;
+  if (!isAuthenticated) return (
+    <div className="page-container">
+      <div className="cart-empty">
+        <div className="cart-empty-icon">🛒</div>
+        <h3>Please sign in</h3>
+        <p>Log in to view your shopping cart</p>
+        <button className="btn btn-primary" onClick={() => navigate('/login')}>Sign In</button>
+      </div>
+    </div>
+  );
+
+  if (loading) return <div className="loading-screen"><div className="spinner"></div><span>Loading cart...</span></div>;
+
+  const totalPrice = parseFloat(summary.total_price);
 
   return (
     <div className="page-container">
-      <h2 className="page-heading">My Cart</h2>
+      <h2 className="page-heading">Shopping Cart</h2>
+
       {items.length === 0 ? (
-        <p className="empty">Your cart is empty</p>
+        <div className="cart-empty">
+          <div className="cart-empty-icon">🛒</div>
+          <h3>Your cart is empty</h3>
+          <p>Looks like you haven't added any tribal treasures yet!</p>
+          <button className="btn btn-primary" onClick={() => navigate('/')}>
+            <FaShoppingBag /> Start Shopping
+          </button>
+        </div>
       ) : (
-        <>
-          {items.map((item) => {
-            const p = item.product_detail || {};
-            const img = p.display_image || p.image_url || p.image || '';
-            return (
-              <div key={item.id} className="cart-row">
-                <img src={img} alt={p.name} onError={(e) => { e.target.src = 'https://via.placeholder.com/100'; }} />
-                <div className="cart-info">
-                  <h4>{p.name}</h4>
-                  <div className="cart-price">₹{p.price}</div>
-                  <div className="qty-controls">
-                    <button onClick={() => updateQty(item.id, item.quantity - 1)}>−</button>
-                    <span>{item.quantity}</span>
-                    <button onClick={() => updateQty(item.id, item.quantity + 1)}>+</button>
-                    <button className="remove-btn" onClick={() => remove(item.id)}>REMOVE</button>
+        <div className="cart-layout">
+          <div className="cart-items">
+            {items.map((item, i) => {
+              const p = item.product_detail || {};
+              const img = p.display_image || p.image_url || p.image || '';
+              return (
+                <div key={item.id} className="cart-row" style={{ animationDelay: `${i * 60}ms` }}>
+                  <img
+                    src={img} alt={p.name}
+                    onClick={() => navigate(`/product/${p.id}`)}
+                    onError={(e) => { e.target.src = 'https://via.placeholder.com/110/f5e6d0/8b5e3c?text=Art'; }}
+                  />
+                  <div className="cart-info">
+                    <h4>{p.name}</h4>
+                    {p.seller?.shop_name && <div className="cart-seller">by {p.seller.shop_name}</div>}
+                    <div className="cart-price">₹{parseFloat(p.price).toLocaleString('en-IN')}</div>
+                    <div className="qty-controls">
+                      <button onClick={() => updateQty(item.id, item.quantity - 1)}>−</button>
+                      <span>{item.quantity}</span>
+                      <button onClick={() => updateQty(item.id, item.quantity + 1)}>+</button>
+                      <button className="remove-btn" onClick={() => remove(item.id)}>REMOVE</button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          <div className="cart-summary">
-            <h3>Total: ₹{summary.total_price} ({summary.total_items} items)</h3>
-            <button className="btn btn-orange" onClick={() => navigate('/checkout')}>Proceed to Checkout</button>
+              );
+            })}
           </div>
-        </>
+
+          <div className="cart-summary">
+            <h3>Order Summary</h3>
+            <div className="summary-row">
+              <span>Items ({summary.total_items})</span>
+              <span>₹{totalPrice.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="summary-row">
+              <span>Delivery</span>
+              <span style={{ color: 'var(--success)', fontWeight: 600 }}>FREE</span>
+            </div>
+            <div className="summary-row total">
+              <span>Total</span>
+              <span>₹{totalPrice.toLocaleString('en-IN')}</span>
+            </div>
+            <button className="btn btn-orange" onClick={() => navigate('/checkout')}>
+              Proceed to Checkout
+            </button>
+          </div>
+        </div>
       )}
-      <button className="btn btn-gray" style={{ maxWidth: 200, marginTop: 10 }} onClick={() => navigate('/')}>Back to Shop</button>
+
+      <button className="btn btn-gray" style={{ maxWidth: 220, marginTop: 'var(--space-lg)' }} onClick={() => navigate('/')}>
+        <FaArrowLeft /> Continue Shopping
+      </button>
     </div>
   );
 }
