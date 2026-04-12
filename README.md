@@ -213,4 +213,5 @@ python -m uvicorn main:app --port 8001 --reload  # → http://127.0.0.1:8001
 | admin@triballink.com     | admin123    | Admin  |
 | artisan@triballink.com   | artisan123  | Seller |
 #   F i n a l - y e a r - p r o j e c t  
+ #   F i n a l - y e a r - p r o j e c t  
  
