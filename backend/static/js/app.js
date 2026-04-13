@@ -310,8 +310,8 @@ const App = {
                         ${TokenManager.isLoggedIn() ? `
                         <div class="review-card mb-3">
                             <h4>Write a Review</h4>
-                            <div class="mt-2 mb-2" id="review-stars-input" style="font-size:1.5rem;cursor:pointer;color:var(--text-muted)">
-                                ${[1,2,3,4,5].map(i => `<i class="far fa-star" data-rating="${i}" onmouseover="App.hoverStars(${i})" onmouseout="App.resetStars()" onclick="App.selectRating(${i})"></i>`).join('')}
+                            <div class="mt-2 mb-2" id="review-stars-input" style="font-size:1.5rem;cursor:pointer">
+                                ${[1,2,3,4,5].map(i => `<i class="fas fa-star" data-rating="${i}" style="color:var(--border-light);transition:color 0.15s,transform 0.15s" onmouseover="App.hoverStars(${i})" onmouseout="App.resetStars()" onclick="App.selectRating(${i})"></i>`).join('')}
                             </div>
                             <input type="hidden" id="review-rating" value="0">
                             <div class="form-group"><textarea class="form-control" id="review-comment" placeholder="Share your experience..." rows="3"></textarea></div>
@@ -339,9 +339,18 @@ const App = {
     },
 
     selectedRating: 0,
-    hoverStars(n) { document.querySelectorAll('#review-stars-input i').forEach((s, i) => { s.className = i < n ? 'fas fa-star' : 'far fa-star'; s.style.color = i < n ? 'var(--secondary)' : 'var(--text-muted)'; }); },
-    resetStars() { const r = this.selectedRating; this.hoverStars(r); },
-    selectRating(n) { this.selectedRating = n; document.getElementById('review-rating').value = n; this.hoverStars(n); },
+    hoverStars(n) {
+        document.querySelectorAll('#review-stars-input i').forEach((s, i) => {
+            s.style.color = i < n ? 'var(--secondary)' : 'var(--border-light)';
+            s.style.transform = i < n ? 'scale(1.15)' : 'scale(1)';
+        });
+    },
+    resetStars() { this.hoverStars(this.selectedRating); },
+    selectRating(n) {
+        this.selectedRating = n;
+        document.getElementById('review-rating').value = n;
+        this.hoverStars(n);
+    },
     async submitReview(productId) {
         const rating = parseInt(document.getElementById('review-rating').value);
         const comment = document.getElementById('review-comment').value.trim();

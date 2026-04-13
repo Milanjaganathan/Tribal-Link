@@ -77,6 +77,9 @@ export default function ProductDetail() {
 
   return (
     <div className="detail-container">
+      <button className="back-btn-floating" onClick={() => navigate(-1)}>
+        <FaArrowLeft /> Back
+      </button>
       <div className="detail-breadcrumb">
         <Link to="/">Home</Link> / <Link to="/">Products</Link> / <span>{product.name}</span>
       </div>
@@ -152,7 +155,7 @@ export default function ProductDetail() {
               <FaHeart /> Wishlist
             </button>
           </div>
-          <button className="btn btn-gray" onClick={() => navigate('/')}><FaArrowLeft /> Back to Shop</button>
+          <button className="btn btn-gray" onClick={() => navigate(-1)}><FaArrowLeft /> Back to Shop</button>
         </div>
       </div>
 

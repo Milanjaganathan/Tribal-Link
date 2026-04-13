@@ -265,6 +265,7 @@ class PaymentProcessView(APIView):
     """
     POST /api/orders/<order_id>/pay/
     Process payment for an order with UPI, bank transfer, or card.
+    Money goes to platform (admin) first, then platform creates seller payouts minus commission.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -290,7 +291,7 @@ class PaymentProcessView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Create payment record
+        # Create payment record (money goes to platform account)
         payment = Payment.objects.create(
             order=order,
             method=data['method'],
@@ -306,7 +307,7 @@ class PaymentProcessView(APIView):
         payment.status = Payment.Status.SUCCESS
         payment.save(update_fields=['status'])
 
-        # Update order
+        # Update order payment status
         order.payment_status = Order.PaymentStatus.COMPLETED
         order.payment_method = data['method']
         order.transaction_id = payment.transaction_id
@@ -317,10 +318,43 @@ class PaymentProcessView(APIView):
             'transaction_id', 'paid_at', 'status',
         ])
 
-        # Notify
+        # ═══ Create Seller Payout records ═══
+        # Group items by seller and create a payout for each
+        from decimal import Decimal
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        seller_totals = {}
+        for item in order.items.select_related('product__seller').all():
+            if item.product and item.product.seller:
+                seller_id = item.product.seller_id
+                if seller_id not in seller_totals:
+                    seller_totals[seller_id] = Decimal('0')
+                seller_totals[seller_id] += item.subtotal
+
+        for seller_id, item_total in seller_totals.items():
+            try:
+                seller = User.objects.get(pk=seller_id)
+                commission_amount = (item_total * order.commission_rate / Decimal('100')).quantize(Decimal('0.01'))
+                payout_amount = item_total - commission_amount
+                SellerPayout.objects.create(
+                    order=order,
+                    seller=seller,
+                    amount=payout_amount,
+                    commission_amount=commission_amount,
+                    commission_rate=order.commission_rate,
+                    seller_upi_id=seller.seller_upi_id or '',
+                    status='pending',
+                    notes=f'Payout for order #{str(order.order_id)[:8]}',
+                )
+            except User.DoesNotExist:
+                pass
+
+        # Notify customer
         notify_order_event(
             order, 'payment_success', 'Payment Successful!',
-            f'Payment of ₹{payment.amount} for order #{str(order.order_id)[:8]} was successful.'
+            f'Payment of ₹{payment.amount} for order #{str(order.order_id)[:8]} was successful. '
+            f'Platform commission: ₹{order.platform_commission}, Seller payout: ₹{order.seller_payout}'
         )
 
         return Response({
@@ -330,6 +364,11 @@ class PaymentProcessView(APIView):
             'amount': str(payment.amount),
             'method': payment.method,
             'status': payment.status,
+            'commission': {
+                'rate': str(order.commission_rate),
+                'platform_commission': str(order.platform_commission),
+                'seller_payout': str(order.seller_payout),
+            },
             'order': OrderDetailSerializer(order).data,
         })
 
@@ -428,9 +467,12 @@ class UPIInfoView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        import os
+        upi_id = os.environ.get('UPI_MERCHANT_ID', 'triballink@upi')
+        merchant_name = os.environ.get('UPI_MERCHANT_NAME', 'TribalLink Marketplace')
         return Response({
-            'upi_id': 'triballink@upi',
-            'merchant_name': 'TribalLink Marketplace',
+            'upi_id': upi_id,
+            'merchant_name': merchant_name,
             'note': 'Payment for TribalLink order',
-            'qr_data': 'upi://pay?pa=triballink@upi&pn=TribalLink&cu=INR',
+            'qr_data': f'upi://pay?pa={upi_id}&pn={merchant_name}&cu=INR',
         })

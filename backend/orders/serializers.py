@@ -56,6 +56,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             'id', 'order_id', 'status', 'payment_method',
             'payment_status', 'transaction_id',
             'subtotal', 'shipping_cost', 'tax', 'total',
+            'commission_rate', 'platform_commission', 'seller_payout', 'payout_status',
             'shipping_name', 'shipping_phone', 'shipping_address',
             'shipping_city', 'shipping_state', 'shipping_pincode',
             'notes', 'items', 'payments',

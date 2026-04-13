@@ -113,27 +113,49 @@ export default function Seller() {
         animation: 'fadeInUp 0.5s var(--ease-out) both',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
-          <div>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', marginBottom: 4, color: 'white' }}>
-              🎨 Artisan Dashboard
-            </h2>
-            <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem' }}>
-              {dashboard?.shop_name || 'Your artisan shop'}{dashboard?.is_verified ? ' · ✅ Verified' : ' · ⏳ Pending verification'}
-            </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            {/* Avatar */}
+            <div style={{
+              width: 60, height: 60, borderRadius: 'var(--radius-full)',
+              background: 'linear-gradient(135deg, var(--gold-500), var(--gold-300))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.5rem', color: 'var(--earth-900)', fontWeight: 700,
+              flexShrink: 0, boxShadow: '0 4px 16px rgba(212, 160, 23, 0.3)',
+            }}>
+              {(dashboard?.first_name?.[0] || user?.first_name?.[0] || 'S').toUpperCase()}
+            </div>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', marginBottom: 2, color: 'white' }}>
+                {dashboard?.seller_name || user?.first_name || '🎨 Artisan Dashboard'}
+              </h2>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem', marginBottom: 2 }}>
+                @{dashboard?.username || user?.username || 'seller'} · {dashboard?.email || user?.email}
+              </p>
+              <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.82rem' }}>
+                {dashboard?.shop_name || 'Your artisan shop'}{dashboard?.is_verified ? ' · ✅ Verified Seller' : ' · ⏳ Pending verification'}
+              </p>
+              {dashboard?.seller_upi_id && (
+                <p style={{ color: 'var(--gold-300)', fontSize: '0.78rem', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <FaRupeeSign style={{ fontSize: '0.7rem' }} /> UPI: {dashboard.seller_upi_id}
+                </p>
+              )}
+            </div>
           </div>
           <button className="btn btn-gold" onClick={() => { setShowForm(!showForm); setActiveTab('products'); }}>
             <FaPlus /> New Product
           </button>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats Row — with commission breakdown */}
         {dashboard && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12, marginTop: 24 }}>
             {[
               { label: 'Products', value: dashboard.products.total, icon: '📦' },
               { label: 'Approved', value: dashboard.products.approved, icon: '✅' },
               { label: 'Orders', value: dashboard.orders.total, icon: '🛒' },
-              { label: 'Earnings', value: `₹${parseFloat(dashboard.earnings.total).toLocaleString('en-IN')}`, icon: '💰' },
+              { label: 'Gross Sales', value: `₹${parseFloat(dashboard.earnings.gross_sales || 0).toLocaleString('en-IN')}`, icon: '📊' },
+              { label: 'Net Earnings', value: `₹${parseFloat(dashboard.earnings.total || 0).toLocaleString('en-IN')}`, icon: '💰' },
+              { label: `Commission (${dashboard.earnings.commission_rate || 10}%)`, value: `₹${parseFloat(dashboard.earnings.commission_deducted || 0).toLocaleString('en-IN')}`, icon: '🏷️' },
             ].map((s, i) => (
               <div key={i} style={{
                 background: 'rgba(255,255,255,0.1)', borderRadius: 'var(--radius-md)',
@@ -289,7 +311,7 @@ export default function Seller() {
         </div>
       )}
 
-      <button className="btn btn-gray" style={{ maxWidth: 220, marginTop: 'var(--space-xl)' }} onClick={() => navigate('/')}>
+      <button className="btn btn-gray" style={{ maxWidth: 220, marginTop: 'var(--space-xl)' }} onClick={() => navigate(-1)}>
         <FaArrowLeft /> Back to Home
       </button>
     </div>

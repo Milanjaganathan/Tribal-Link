@@ -98,7 +98,7 @@ export default function Wishlist({ onUpdate }) {
           })}
         </div>
       )}
-      <button className="btn btn-gray" style={{ maxWidth: 220, marginTop: 'var(--space-xl)' }} onClick={() => navigate('/')}>
+      <button className="btn btn-gray" style={{ maxWidth: 220, marginTop: 'var(--space-xl)' }} onClick={() => navigate(-1)}>
         <FaArrowLeft /> Continue Shopping
       </button>
     </div>

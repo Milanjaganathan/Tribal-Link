@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AdminAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { FaUsers, FaBox, FaShoppingBag, FaRupeeSign, FaCheck, FaTimes, FaStore, FaChartBar, FaStar, FaTrash } from 'react-icons/fa';
+import { FaUsers, FaBox, FaShoppingBag, FaRupeeSign, FaCheck, FaTimes, FaStore, FaChartBar, FaStar, FaTrash, FaArrowLeft } from 'react-icons/fa';
 
 export default function AdminDashboard() {
   const { user, isAuthenticated } = useAuth();
@@ -332,6 +332,10 @@ export default function AdminDashboard() {
           ))}
         </div>
       )}
+
+      <button className="btn btn-gray" style={{ maxWidth: 220, marginTop: 'var(--space-xl)' }} onClick={() => navigate('/')}>
+        <FaArrowLeft /> Back to Home
+      </button>
     </div>
   );
 }

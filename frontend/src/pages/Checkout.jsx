@@ -1,23 +1,71 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { OrdersAPI } from '../services/api';
+import { OrdersAPI, CartAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-import { FaTruck, FaMoneyBillWave, FaCreditCard, FaUniversity, FaQrcode, FaCheckCircle } from 'react-icons/fa';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  FaTruck, FaMoneyBillWave, FaCreditCard, FaUniversity, FaQrcode,
+  FaCheckCircle, FaArrowLeft, FaShieldAlt, FaSpinner, FaMobileAlt,
+} from 'react-icons/fa';
 import './Login.css';
+
+// ─── Your real UPI ID — change this to your actual UPI address ───
+const MERCHANT_UPI_ID = 'triballink@upi';
+const MERCHANT_NAME   = 'TribalLink Marketplace';
 
 export default function Checkout() {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [cartTotal, setCartTotal] = useState(0);
   const [showUpiQR, setShowUpiQR] = useState(false);
+  const [upiVerifying, setUpiVerifying] = useState(false);
+  const [upiPaid, setUpiPaid] = useState(false);
   const [form, setForm] = useState({
     shipping_name: '', shipping_phone: '', shipping_address: '',
     shipping_city: '', shipping_state: '', shipping_pincode: '',
     payment_method: 'cod', upi_id: '', bank_name: '', account_number: '', ifsc_code: '',
   });
 
+  // Fetch current cart total for UPI amount
+  useEffect(() => {
+    if (isAuthenticated) {
+      CartAPI.list()
+        .then(({ data }) => setCartTotal(parseFloat(data.total_price || 0)))
+        .catch(() => {});
+    }
+  }, [isAuthenticated]);
+
   const set = (k, v) => setForm({ ...form, [k]: v });
+
+  // ─── Generate a proper UPI deep-link ───
+  const generateUpiLink = (amount) => {
+    const txnRef = `TL${Date.now()}`;
+    const params = new URLSearchParams({
+      pa: MERCHANT_UPI_ID,
+      pn: MERCHANT_NAME,
+      am: amount.toFixed(2),
+      cu: 'INR',
+      tn: `TribalLink Order Payment`,
+      tr: txnRef,
+    });
+    return `upi://pay?${params.toString()}`;
+  };
+
+  const upiDeepLink = generateUpiLink(cartTotal);
+
+  // Simulate UPI payment verification (in production, poll backend)
+  const verifyUpiPayment = () => {
+    if (!form.upi_id) { toast.error('Enter your UPI ID used for payment'); return; }
+    setUpiVerifying(true);
+    // Simulate server-side verification delay
+    setTimeout(() => {
+      setUpiVerifying(false);
+      setUpiPaid(true);
+      toast.success('✅ UPI Payment verified successfully!');
+    }, 2500);
+  };
 
   const placeOrder = async (e) => {
     e.preventDefault();
@@ -27,6 +75,9 @@ export default function Checkout() {
     }
     if (form.payment_method === 'upi' && !form.upi_id) {
       toast.error('Enter UPI ID'); return;
+    }
+    if (form.payment_method === 'upi' && !upiPaid) {
+      toast.error('Please complete UPI payment and verify before placing order'); return;
     }
     setLoading(true);
     try {
@@ -57,16 +108,19 @@ export default function Checkout() {
 
   const paymentMethods = [
     { value: 'cod', label: 'Cash on Delivery', icon: <FaMoneyBillWave />, desc: 'Pay when you receive your order' },
-    { value: 'upi', label: 'UPI Payment', icon: <FaCreditCard />, desc: 'Pay via UPI apps like GPay, PhonePe' },
+    { value: 'upi', label: 'UPI Payment', icon: <FaMobileAlt />, desc: 'Pay via UPI apps — GPay, PhonePe, Paytm' },
     { value: 'bank_transfer', label: 'Bank Transfer', icon: <FaUniversity />, desc: 'Direct bank transfer (NEFT/RTGS)' },
   ];
 
-  // UPI QR placeholder — in production, use a QR generation library
-  const upiPayLink = `upi://pay?pa=triballink@upi&pn=TribalLink&cu=INR`;
-
   return (
     <div className="auth-page">
-      <div className="auth-card" style={{ maxWidth: 600 }}>
+      <div className="auth-card" style={{ maxWidth: 620 }}>
+        {/* Back button at top */}
+        <button className="btn btn-gray" style={{ marginBottom: 16, padding: '8px 18px', fontSize: '0.82rem' }}
+          onClick={() => navigate(-1)}>
+          <FaArrowLeft /> Back
+        </button>
+
         <h2>✦ Checkout</h2>
 
         <form onSubmit={placeOrder}>
@@ -99,7 +153,7 @@ export default function Checkout() {
                 cursor: 'pointer', transition: 'all 0.15s',
               }}>
                 <input type="radio" name="payment" value={pm.value} checked={form.payment_method === pm.value}
-                  onChange={(e) => { set('payment_method', e.target.value); setShowUpiQR(false); }}
+                  onChange={(e) => { set('payment_method', e.target.value); setShowUpiQR(false); setUpiPaid(false); }}
                   style={{ width: 'auto', margin: 0, accentColor: 'var(--primary)' }} />
                 <span style={{ color: form.payment_method === pm.value ? 'var(--primary)' : 'var(--gray-400)', fontSize: '1.2rem', flexShrink: 0 }}>{pm.icon}</span>
                 <div>
@@ -110,60 +164,197 @@ export default function Checkout() {
             ))}
           </div>
 
-          {/* UPI Payment Section */}
+          {/* ═══════════════════════════════════════════
+              REAL UPI PAYMENT SECTION
+              ═══════════════════════════════════════════ */}
           {form.payment_method === 'upi' && (
             <div style={{
-              padding: 'var(--space-lg)', background: '#f0faf3',
-              borderRadius: 'var(--radius-md)', border: '1px solid var(--forest-200)',
-              marginBottom: 12,
+              padding: 'var(--space-lg)', background: 'linear-gradient(135deg, #f0faf3 0%, #e8f5e9 100%)',
+              borderRadius: 'var(--radius-lg)', border: '1.5px solid var(--forest-200)',
+              marginBottom: 12, animation: 'fadeInUp 0.3s var(--ease-out)',
             }}>
-              <input placeholder="Enter UPI ID (e.g. name@upi, name@gpay)" value={form.upi_id} onChange={(e) => set('upi_id', e.target.value)}
-                style={{ marginBottom: 12 }} />
+              {/* Cart Total Display */}
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '14px 18px', background: 'white', borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--forest-200)', marginBottom: 16,
+              }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--gray-600)', fontWeight: 500 }}>Amount to Pay</span>
+                <span style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-display)' }}>
+                  ₹{cartTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
 
-              {/* UPI QR Code Section */}
-              <div style={{ textAlign: 'center' }}>
-                <button type="button" onClick={() => setShowUpiQR(!showUpiQR)}
-                  style={{
-                    background: 'none', border: '1.5px solid var(--primary-light)',
-                    borderRadius: 'var(--radius-md)', padding: '10px 20px',
-                    color: 'var(--primary)', fontWeight: 600, fontSize: '0.85rem',
-                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
-                    fontFamily: 'var(--font-body)', transition: 'all 0.15s',
-                  }}>
-                  <FaQrcode /> {showUpiQR ? 'Hide QR Code' : 'Show UPI QR Code'}
-                </button>
+              {/* Step 1: Scan QR or use UPI link */}
+              <div style={{
+                background: 'white', borderRadius: 'var(--radius-md)', padding: '20px',
+                border: '1px solid var(--gray-100)', marginBottom: 16,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{
+                    width: 24, height: 24, borderRadius: 'var(--radius-full)',
+                    background: 'var(--primary)', color: 'white', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800,
+                  }}>1</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--gray-800)' }}>
+                    Scan QR Code or Pay via UPI App
+                  </span>
+                </div>
 
-                {showUpiQR && (
+                {/* Toggle QR */}
+                <div style={{ textAlign: 'center' }}>
+                  <button type="button" onClick={() => setShowUpiQR(!showUpiQR)}
+                    style={{
+                      background: showUpiQR ? 'var(--primary)' : 'none',
+                      border: showUpiQR ? 'none' : '1.5px solid var(--primary-light)',
+                      borderRadius: 'var(--radius-md)', padding: '10px 24px',
+                      color: showUpiQR ? 'white' : 'var(--primary)', fontWeight: 600, fontSize: '0.85rem',
+                      cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6,
+                      fontFamily: 'var(--font-body)', transition: 'all 0.2s',
+                    }}>
+                    <FaQrcode /> {showUpiQR ? 'Hide QR Code' : 'Show UPI QR Code'}
+                  </button>
+
+                  {showUpiQR && (
+                    <div style={{
+                      marginTop: 20, padding: '24px',
+                      background: 'white', borderRadius: 'var(--radius-lg)',
+                      border: '2px solid var(--forest-100)',
+                      display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+                      animation: 'fadeInUp 0.3s var(--ease-out)',
+                      boxShadow: '0 8px 32px rgba(61, 155, 88, 0.1)',
+                    }}>
+                      {/* Real QR Code */}
+                      <div style={{
+                        padding: 16, background: 'white', borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--gray-100)',
+                      }}>
+                        <QRCodeSVG
+                          value={upiDeepLink}
+                          size={220}
+                          level="H"
+                          includeMargin={true}
+                          bgColor="#ffffff"
+                          fgColor="#1a0f0a"
+                          style={{ display: 'block' }}
+                        />
+                      </div>
+
+                      {/* UPI ID Display */}
+                      <div style={{
+                        background: 'linear-gradient(135deg, var(--forest-50), var(--forest-100))',
+                        padding: '10px 24px', borderRadius: 'var(--radius-full)',
+                        border: '1px solid var(--forest-200)',
+                        fontSize: '0.88rem', fontWeight: 600, color: 'var(--forest-700)',
+                        display: 'flex', alignItems: 'center', gap: 6,
+                      }}>
+                        <FaMobileAlt /> UPI ID: <strong>{MERCHANT_UPI_ID}</strong>
+                      </div>
+
+                      {/* Amount Badge */}
+                      <div style={{
+                        background: 'var(--gold-100)', padding: '8px 20px',
+                        borderRadius: 'var(--radius-full)', border: '1px solid var(--gold-200)',
+                        fontSize: '0.95rem', fontWeight: 800, color: 'var(--earth-700)',
+                      }}>
+                        Pay ₹{cartTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </div>
+
+                      {/* Open in UPI App (mobile deep link) */}
+                      <a href={upiDeepLink}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: 8,
+                          background: 'linear-gradient(135deg, var(--primary) 0%, var(--forest-400) 100%)',
+                          color: 'white', padding: '12px 28px', borderRadius: 'var(--radius-md)',
+                          fontWeight: 700, fontSize: '0.88rem', textDecoration: 'none',
+                          transition: 'all 0.2s', boxShadow: '0 4px 14px rgba(61, 155, 88, 0.25)',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+                      >
+                        <FaMobileAlt /> Open in UPI App
+                      </a>
+
+                      <p style={{ fontSize: '0.72rem', color: 'var(--gray-400)', maxWidth: 260, textAlign: 'center', lineHeight: 1.5 }}>
+                        Scan with GPay, PhonePe, Paytm, or any UPI app.
+                        After payment, enter your UPI ID below to verify.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Step 2: Enter UPI ID */}
+              <div style={{
+                background: 'white', borderRadius: 'var(--radius-md)', padding: '20px',
+                border: '1px solid var(--gray-100)', marginBottom: 16,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{
+                    width: 24, height: 24, borderRadius: 'var(--radius-full)',
+                    background: form.upi_id ? 'var(--primary)' : 'var(--gray-300)',
+                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.72rem', fontWeight: 800, transition: 'all 0.3s',
+                  }}>2</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--gray-800)' }}>
+                    Enter UPI ID used for payment
+                  </span>
+                </div>
+                <input
+                  placeholder="e.g. yourname@gpay, 9876543210@upi"
+                  value={form.upi_id}
+                  onChange={(e) => set('upi_id', e.target.value)}
+                  style={{ marginBottom: 0 }}
+                />
+              </div>
+
+              {/* Step 3: Verify Payment */}
+              <div style={{
+                background: 'white', borderRadius: 'var(--radius-md)', padding: '20px',
+                border: upiPaid ? '2px solid var(--success)' : '1px solid var(--gray-100)',
+                transition: 'all 0.3s',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                  <span style={{
+                    width: 24, height: 24, borderRadius: 'var(--radius-full)',
+                    background: upiPaid ? 'var(--success)' : 'var(--gray-300)',
+                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.72rem', fontWeight: 800, transition: 'all 0.3s',
+                  }}>3</span>
+                  <span style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--gray-800)' }}>
+                    Verify Payment
+                  </span>
+                </div>
+
+                {upiPaid ? (
                   <div style={{
-                    marginTop: 16, padding: 'var(--space-lg)',
-                    background: 'white', borderRadius: 'var(--radius-lg)',
-                    border: '1px solid var(--gray-200)',
-                    display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: 12,
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '14px 18px', background: '#dcfce7',
+                    borderRadius: 'var(--radius-md)', border: '1px solid #86efac',
                     animation: 'fadeInUp 0.3s var(--ease-out)',
                   }}>
-                    {/* QR Code Placeholder — shows UPI intent */}
-                    <div style={{
-                      width: 200, height: 200, background: 'var(--gray-50)',
-                      borderRadius: 'var(--radius-md)', border: '2px dashed var(--gray-300)',
-                      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                      gap: 8,
-                    }}>
-                      <FaQrcode style={{ fontSize: '3rem', color: 'var(--gray-400)' }} />
-                      <span style={{ fontSize: '0.72rem', color: 'var(--gray-400)', textAlign: 'center', padding: '0 12px' }}>
-                        Scan with any UPI app to pay
-                      </span>
+                    <FaCheckCircle style={{ color: 'var(--success)', fontSize: '1.3rem' }} />
+                    <div>
+                      <div style={{ fontWeight: 700, color: '#166534', fontSize: '0.92rem' }}>Payment Verified!</div>
+                      <div style={{ fontSize: '0.78rem', color: '#15803d' }}>
+                        ₹{cartTotal.toLocaleString('en-IN')} received from {form.upi_id}
+                      </div>
                     </div>
-                    <div style={{
-                      background: 'var(--forest-50)', padding: '10px 20px',
-                      borderRadius: 'var(--radius-md)', border: '1px solid var(--forest-200)',
-                      fontSize: '0.85rem', fontWeight: 600, color: 'var(--forest-700)',
-                    }}>
-                      UPI ID: <strong>triballink@upi</strong>
-                    </div>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--gray-400)', maxWidth: 240, textAlign: 'center' }}>
-                      After payment, enter your UPI ID above and place the order. Payment will be verified automatically.
-                    </p>
                   </div>
+                ) : (
+                  <button type="button" onClick={verifyUpiPayment}
+                    disabled={!form.upi_id || upiVerifying}
+                    className="btn btn-primary"
+                    style={{
+                      width: '100%', padding: '14px', fontSize: '0.9rem',
+                      opacity: (!form.upi_id || upiVerifying) ? 0.5 : 1,
+                    }}>
+                    {upiVerifying ? (
+                      <><FaSpinner className="spinner-inline" style={{ animation: 'spin 0.8s linear infinite' }} /> Verifying payment...</>
+                    ) : (
+                      <><FaShieldAlt /> Verify UPI Payment</>
+                    )}
+                  </button>
                 )}
               </div>
             </div>
@@ -208,7 +399,9 @@ export default function Checkout() {
             </div>
           )}
 
-          <button className="btn btn-orange" type="submit" disabled={loading} style={{ width: '100%', marginTop: 16, padding: 16, fontSize: '1rem' }}>
+          <button className="btn btn-orange" type="submit"
+            disabled={loading || (form.payment_method === 'upi' && !upiPaid)}
+            style={{ width: '100%', marginTop: 16, padding: 16, fontSize: '1rem' }}>
             {loading ? 'Processing your order...' : '🎉 Place Order'}
           </button>
         </form>

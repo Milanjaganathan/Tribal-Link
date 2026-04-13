@@ -35,6 +35,7 @@ class User(AbstractUser):
     # Seller-specific fields
     shop_name = models.CharField(max_length=200, blank=True)
     shop_description = models.TextField(blank=True)
+    seller_upi_id = models.CharField(max_length=100, blank=True, help_text='Seller UPI ID for receiving payouts')
     is_verified_seller = models.BooleanField(default=False)
     seller_approved_at = models.DateTimeField(null=True, blank=True)
 

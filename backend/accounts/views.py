@@ -549,13 +549,14 @@ class AdminReviewDeleteView(APIView):
 class SellerDashboardView(APIView):
     """
     GET /api/accounts/seller/dashboard/
-    Seller earnings and overview dashboard.
+    Seller earnings and overview dashboard with commission breakdown.
     """
     permission_classes = [IsSellerRole]
 
     def get(self, request):
-        from orders.models import Order, OrderItem
+        from orders.models import Order, OrderItem, SellerPayout
         from products.models import Product
+        from decimal import Decimal
 
         seller = request.user
         products = Product.objects.filter(seller=seller)
@@ -575,14 +576,32 @@ class SellerDashboardView(APIView):
         pending_seller_orders = seller_orders.filter(status__in=['pending', 'confirmed']).count()
         completed_seller_orders = seller_orders.filter(status='delivered').count()
 
-        # Earnings
-        total_earnings = seller_order_items.filter(
+        # Total gross sales (before commission)
+        total_gross_sales = seller_order_items.filter(
             order__payment_status='completed'
         ).aggregate(
             total=Sum('product_price')
-        )['total'] or 0
+        )['total'] or Decimal('0')
+
+        # Payout records — actual earnings after commission
+        payouts = SellerPayout.objects.filter(seller=seller)
+        total_net_earnings = payouts.aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        total_commission_deducted = payouts.aggregate(total=Sum('commission_amount'))['total'] or Decimal('0')
+        pending_payouts = payouts.filter(status='pending').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+        completed_payouts = payouts.filter(status='completed').aggregate(total=Sum('amount'))['total'] or Decimal('0')
+
+        # Get the commission rate from the latest order or default
+        latest_order = seller_orders.order_by('-created_at').first()
+        commission_rate = latest_order.commission_rate if latest_order else Decimal('10.00')
 
         return Response({
+            'seller_name': seller.full_name,
+            'username': seller.username,
+            'email': seller.email,
+            'first_name': seller.first_name,
+            'last_name': seller.last_name,
+            'phone': seller.phone,
+            'seller_upi_id': seller.seller_upi_id,
             'products': {
                 'total': total_products,
                 'approved': approved_products,
@@ -594,7 +613,12 @@ class SellerDashboardView(APIView):
                 'completed': completed_seller_orders,
             },
             'earnings': {
-                'total': str(total_earnings),
+                'gross_sales': str(total_gross_sales),
+                'total': str(total_net_earnings),
+                'commission_deducted': str(total_commission_deducted),
+                'commission_rate': str(commission_rate),
+                'pending_payouts': str(pending_payouts),
+                'completed_payouts': str(completed_payouts),
             },
             'shop_name': seller.shop_name,
             'is_verified': seller.is_verified_seller,

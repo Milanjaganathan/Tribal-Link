@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AuthAPI, OrdersAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { FaUser, FaEnvelope, FaPhone, FaStore, FaBox, FaEdit, FaSave, FaArrowLeft } from 'react-icons/fa';
+import { FaUser, FaEnvelope, FaPhone, FaStore, FaBox, FaEdit, FaSave, FaArrowLeft, FaRupeeSign } from 'react-icons/fa';
 import './Login.css';
 
 export default function Profile() {
@@ -12,7 +12,7 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [orderCount, setOrderCount] = useState(0);
   const [form, setForm] = useState({
-    first_name: '', last_name: '', phone: '', shop_name: '',
+    first_name: '', last_name: '', phone: '', shop_name: '', seller_upi_id: '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -24,6 +24,7 @@ export default function Profile() {
         last_name: user.last_name || '',
         phone: user.phone || '',
         shop_name: user.shop_name || '',
+        seller_upi_id: user.seller_upi_id || '',
       });
     }
     OrdersAPI.list()
@@ -164,13 +165,28 @@ export default function Profile() {
               )}
             </div>
           )}
+
+          {(user?.role === 'seller' || editing) && (
+            <div>
+              <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <FaRupeeSign /> UPI ID (for receiving payouts)
+              </label>
+              {editing ? (
+                <input value={form.seller_upi_id} onChange={(e) => set('seller_upi_id', e.target.value)} placeholder="e.g. yourname@upi" />
+              ) : (
+                <p style={{ padding: '12px 0', fontWeight: 500, color: user?.seller_upi_id ? 'var(--success)' : 'var(--gray-400)' }}>
+                  {user?.seller_upi_id || '— Not set (add UPI ID to receive payouts)'}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="divider" />
 
         <div style={{ display: 'flex', gap: 12 }}>
-          <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => navigate('/')}>
-            <FaArrowLeft /> Home
+          <button className="btn btn-gray" style={{ flex: 1 }} onClick={() => navigate(-1)}>
+            <FaArrowLeft /> Back
           </button>
           <button className="btn btn-red" style={{ flex: 1 }} onClick={() => { logout(); navigate('/'); }}>
             Sign Out

@@ -30,7 +30,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'email', 'username', 'password', 'password2',
             'first_name', 'last_name', 'phone', 'role',
-            'shop_name', 'shop_description',
+            'shop_name', 'shop_description', 'seller_upi_id',
         ]
         extra_kwargs = {
             'first_name': {'required': True},
@@ -66,7 +66,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'first_name', 'last_name',
             'full_name', 'phone', 'role', 'avatar', 'bio', 'address',
             'city', 'state', 'pincode', 'shop_name', 'shop_description',
-            'is_verified_seller', 'is_email_verified',
+            'seller_upi_id', 'is_verified_seller', 'is_email_verified',
             'created_at', 'updated_at',
         ]
         read_only_fields = [

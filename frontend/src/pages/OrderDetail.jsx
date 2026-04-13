@@ -194,6 +194,23 @@ export default function OrderDetail() {
             <p style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--gray-900)', marginTop: 8 }}>
               Total: ₹{parseFloat(order.total).toLocaleString('en-IN')}
             </p>
+            {/* Commission Breakdown */}
+            {order.platform_commission > 0 && (
+              <div style={{
+                marginTop: 12, padding: '10px 14px', background: 'var(--gray-50)',
+                borderRadius: 'var(--radius-sm)', border: '1px solid var(--gray-100)',
+                fontSize: '0.78rem', color: 'var(--gray-500)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span>Service Charge ({order.commission_rate}%)</span>
+                  <span>₹{parseFloat(order.platform_commission).toLocaleString('en-IN')}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600, color: 'var(--gray-700)' }}>
+                  <span>Seller Receives</span>
+                  <span>₹{parseFloat(order.seller_payout).toLocaleString('en-IN')}</span>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -224,7 +241,7 @@ export default function OrderDetail() {
       </div>
 
       <div style={{ display: 'flex', gap: 'var(--space-md)' }}>
-        <button className="btn btn-gray" onClick={() => navigate('/orders')}><FaArrowLeft /> All Orders</button>
+        <button className="btn btn-gray" onClick={() => navigate(-1)}><FaArrowLeft /> Back</button>
         <button className="btn btn-primary" onClick={() => navigate('/')}>Continue Shopping</button>
       </div>
     </div>

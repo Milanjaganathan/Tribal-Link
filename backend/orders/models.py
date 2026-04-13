@@ -65,6 +65,24 @@ class Order(models.Model):
     tax = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    # Commission — platform keeps this percentage
+    commission_rate = models.DecimalField(
+        max_digits=5, decimal_places=2, default=10.00,
+        help_text='Platform commission percentage (e.g. 10.00 = 10%)',
+    )
+    platform_commission = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text='Amount kept by the platform',
+    )
+    seller_payout = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0,
+        help_text='Amount to be paid to the seller(s)',
+    )
+    payout_status = models.CharField(
+        max_length=15, default='pending',
+        choices=[('pending', 'Pending'), ('processing', 'Processing'), ('completed', 'Completed')],
+    )
+
     # Shipping address
     shipping_name = models.CharField(max_length=200)
     shipping_phone = models.CharField(max_length=15)
@@ -90,11 +108,15 @@ class Order(models.Model):
         return f'Order {self.order_id} — {self.user.email}'
 
     def calculate_total(self):
-        """Recalculate order total from items."""
+        """Recalculate order total from items and compute commission split."""
+        from decimal import Decimal
         self.subtotal = sum(item.subtotal for item in self.items.all())
         self.tax = self.subtotal * 0  # Set to 0 or configure GST
         self.total = self.subtotal + self.shipping_cost + self.tax
-        self.save(update_fields=['subtotal', 'tax', 'total'])
+        # Calculate commission split
+        self.platform_commission = (self.total * self.commission_rate / Decimal('100')).quantize(Decimal('0.01'))
+        self.seller_payout = self.total - self.platform_commission
+        self.save(update_fields=['subtotal', 'tax', 'total', 'platform_commission', 'seller_payout'])
 
 
 class OrderItem(models.Model):
@@ -170,3 +192,39 @@ class Payment(models.Model):
 
     def __str__(self):
         return f'Payment {self.payment_id} — ₹{self.amount} ({self.status})'
+
+
+class SellerPayout(models.Model):
+    """Tracks payouts from the platform to individual sellers."""
+
+    class Status(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        PROCESSING = 'processing', 'Processing'
+        COMPLETED = 'completed', 'Completed'
+        FAILED = 'failed', 'Failed'
+
+    payout_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name='seller_payouts',
+    )
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+        related_name='payouts',
+    )
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    commission_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=2, default=10.00)
+    seller_upi_id = models.CharField(max_length=100, blank=True)
+    status = models.CharField(
+        max_length=15, choices=Status.choices, default=Status.PENDING,
+    )
+    transaction_id = models.CharField(max_length=200, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Payout {self.payout_id} — ₹{self.amount} to {self.seller.email}'

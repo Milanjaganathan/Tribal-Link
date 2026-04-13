@@ -117,7 +117,7 @@ function timeAgo(dateStr) {
 function renderStars(rating) {
     let s = '';
     for (let i = 1; i <= 5; i++) {
-        s += `<i class="fa${i <= Math.round(rating || 0) ? 's' : 'r'} fa-star"></i>`;
+        s += `<i class="fas fa-star" style="color:${i <= Math.round(rating || 0) ? 'var(--secondary)' : 'var(--border-light)'}"></i>`;
     }
     return s;
 }
